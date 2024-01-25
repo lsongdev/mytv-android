@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="selected_item_color">#FFD700</color> <!-- 金色 -->
+    <color name="normal_item_color">#70000000</color>   <!-- 白色 -->
+</resources>
