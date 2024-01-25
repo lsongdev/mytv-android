@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.Mytv" parent="Theme.AppCompat.DayNight.NoActionBar" />
+</resources>
