@@ -2,97 +2,32 @@ package org.lsong.mytv
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.KeyEvent
+import android.view.View
+import android.view.View.OnFocusChangeListener
+import android.widget.LinearLayout
 import android.widget.ListView
+import android.widget.TextView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-
-val cctv1 = Channel(
-    name = "CCTV 1",
-    logo = "https://resources.yangshipin.cn/assets/oms/image/202306/d57905b93540bd15f0c48230dbbbff7ee0d645ff539e38866e2d15c8b9f7dfcd.png?imageMogr2/format/webp",
-    sources = listOf(
-        Source(
-            name = "",
-            url = "http://dbiptv.sn.chinamobile.com/PLTV/88888890/224/3221226231/index.m3u8"
-        )
-    )
-)
-val cctv2 = Channel(
-    name = "CCTV 2",
-    logo  = "https://resources.yangshipin.cn/assets/oms/image/202306/20115388de0207131af17eac86c33049b95d69eaff064e55653a1b941810a006.png?imageMogr2/format/webp",
-    sources = listOf(
-        Source(
-            name = "",
-            url = "http://dbiptv.sn.chinamobile.com/PLTV/88888890/224/3221226195/index.m3u8"
-        )
-    )
-)
-val cctv3 = Channel(
-    name = "CCTV 3",
-    logo  = "https://resources.yangshipin.cn/assets/oms/image/202306/7b7a65c712450da3deb6ca66fbacf4f9aee00d3f20bd80eafb5ada01ec63eb3a.png?imageMogr2/format/webp",
-    sources = listOf(
-        Source(
-            name = "",
-            url = "http://dbiptv.sn.chinamobile.com/PLTV/88888890/224/3221226397/index.m3u8"
-        )
-    )
-)
-
-val btv = Channel(
-    name = "BTV",
-    logo = "https://resources.yangshipin.cn/assets/oms/image/202306/f4f23633c578beea49a3841d88d3490100f029ee349059fa532869db889872c5.png?imageMogr2/format/webp",
-    sources = listOf(
-        Source(
-            name = "",
-            url = "http://ottrrs.hl.chinamobile.com/PLTV/88888888/224/3221225728/index.m3u8",
-        )
-    )
-)
-
-val category1 = Category(
-    name = "央视",
-    channels = listOf(
-        cctv1.name,
-        cctv2.name,
-        cctv3.name,
-        btv.name,
-    )
-)
-val category2 = Category(
-    name = "卫视",
-    channels = listOf(
-        cctv2.name,
-        cctv3.name,
-    )
-)
-
-
-val categories = arrayOf(
-    category1,
-    category2,
-)
-
-val channels = arrayOf(
-    cctv1,
-    cctv2,
-    cctv3,
-    btv,
-
-    cctv1,
-    cctv2,
-    cctv3,
-
-    cctv1,
-    cctv2,
-    cctv3,
-)
+import org.lsong.mytv.api.MyResponse
+import org.lsong.mytv.api.RetrofitClient
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class MainActivity : Activity() {
 
     private lateinit var player : ExoPlayer
+    private lateinit var channels: List<Channel>
+    private var currentChannelIndex = 0
+    var isMenuOpen = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,21 +36,40 @@ class MainActivity : Activity() {
         player.playWhenReady = true
         val playerView = findViewById<PlayerView>(R.id.player_view)
         playerView.player = player
-
-        val categoryAdapter = CategoryAdapter(categories)
-        val categoryView = findViewById<RecyclerView>(R.id.category_list);
-        categoryView.layoutManager = LinearLayoutManager(this)
-        categoryView.adapter = categoryAdapter
-
-        val channelAdapter = ChannelAdapter(channels)
-        val channelView = findViewById<RecyclerView>(R.id.channel_list);
-        channelView.layoutManager = LinearLayoutManager(this)
-        channelView.adapter = channelAdapter
-        this.playChannel(cctv1);
+        this.loadData()
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        return super.onKeyDown(keyCode, event)
+    private fun handleData(data: MyResponse) {
+        val channelMap = data.channels.associateBy { it.name }
+        val channelView = findViewById<ListView>(R.id.channel_list);
+        channelView.setOnItemClickListener { parent, view, position, id ->
+            this.playChannel(channels[position])
+        }
+        val categoryView = findViewById<RecyclerView>(R.id.category_list);
+        categoryView.layoutManager = LinearLayoutManager(this)
+        categoryView.adapter = CategoryAdapter(data.categories) { category ->
+            // This code will be executed when a category item is clicked
+            channels = category.channels.mapNotNull { channelMap[it] }
+            channelView.adapter = ChannelAdapter(this, channels)
+        }
+    }
+    private fun loadData() {
+        val context = this
+        RetrofitClient.apiService.getChannels().enqueue(object : Callback<MyResponse> {
+            override fun onResponse(call: Call<MyResponse>, response: Response<MyResponse>) {
+                if (response.isSuccessful) {
+                    response.body()?.let {
+                        context.handleData(it)
+                        Log.d("MainActivity", "Response: ${it.toString()}")
+                    }
+                } else {
+                    Log.e("MainActivity", "Error Response: ${response.errorBody()?.string()}")
+                }
+            }
+            override fun onFailure(call: Call<MyResponse>, t: Throwable) {
+                Log.e("MainActivity", "Network Request Failed", t)
+            }
+        })
     }
 
     override fun onPause() {
@@ -138,7 +92,63 @@ class MainActivity : Activity() {
         player.setMediaItem(mediaItem)
         player.prepare()
     }
+    fun showChannelInfo(channel: Channel) {
+        val channelInfo = findViewById<LinearLayout>(R.id.channel_info)
+        val channelIdView = findViewById<TextView>(R.id.channel_id)
+        val channelTitleView = findViewById<TextView>(R.id.channel_title)
+        // channelIdView.text = channel.id.toString()
+        channelTitleView.text = channel.name
+        channelInfo.visibility = View.VISIBLE
+        val handler = Handler(Looper.getMainLooper())
+        val runnable = Runnable {
+            channelInfo.visibility = View.GONE
+        }
+        handler.postDelayed(runnable, 3000)
+    }
     private  fun playChannel(channel: Channel) {
         this.play(channel.sources[0].url)
+        this.showChannelInfo(channel)
+    }
+
+    private fun changeChannel(direction: Int) {
+        currentChannelIndex = (currentChannelIndex + direction + channels.size) % channels.size
+        Log.d("MainActivity", "currentChannelIndex: $currentChannelIndex")
+        val channel = channels[currentChannelIndex]
+        this.playChannel(channel)
+    }
+
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        val menuLayout = findViewById<LinearLayout>(R.id.menu_layout);
+        when (keyCode) {
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_DPAD_CENTER -> {
+                if (menuLayout.visibility == View.GONE) {
+                    menuLayout.visibility = View.VISIBLE
+                    return true
+                }
+            }
+            KeyEvent.KEYCODE_BACK -> {
+                if (menuLayout.visibility == View.VISIBLE) {
+                    menuLayout.visibility = View.GONE
+                    return true
+                }
+            }
+            KeyEvent.KEYCODE_DPAD_UP -> {
+                if (menuLayout.visibility == View.VISIBLE) {
+                    return super.onKeyDown(keyCode, event)
+                }
+                changeChannel(-1)
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
+                if (menuLayout.visibility == View.VISIBLE) {
+                    return super.onKeyDown(keyCode, event)
+                }
+                changeChannel(1)
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 }
