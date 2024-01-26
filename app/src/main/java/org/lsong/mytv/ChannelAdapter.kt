@@ -1,11 +1,12 @@
 package org.lsong.mytv
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 
 data class Source (
@@ -14,36 +15,27 @@ data class Source (
 )
 
 data class Channel (
+    val id: Int,
     val name: String,
     val logo: String,
     val sources: List<Source>,
 )
 
-class ChannelAdapter(private val channels: Array<Channel>) :
-    RecyclerView.Adapter<ChannelAdapter.ViewHolder>() {
-    class ViewHolder(view: View) : RecyclerView.ViewHolder (view) {
-        val nameView: TextView
-        val logoView: ImageView
+class ChannelAdapter(context: Context, private val channels: List<Channel>) : ArrayAdapter<Channel>(context, 0, channels) {
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val itemView = convertView ?: LayoutInflater.from(context).inflate(R.layout.channel_item, parent, false)
 
-        init {
-            nameView = view.findViewById(R.id.channel_name)
-            logoView = view.findViewById(R.id.channel_logo)
-        }
-    }
+        // 获取数据项
+        val channel = channels[position]
 
-    override fun onCreateViewHolder(viewGroup: ViewGroup, viewType: Int): ViewHolder {
-        val view  = LayoutInflater.from(viewGroup.context).inflate(R.layout.channel_item, viewGroup, false)
-        return ViewHolder(view)
-    }
+        // 获取布局中的视图并设置数据
+        val logoView = itemView.findViewById<ImageView>(R.id.channel_logo)
+        val nameView = itemView.findViewById<TextView>(R.id.channel_name)
 
-    override fun getItemCount(): Int {
-        return channels.size
-    }
-
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.nameView.text = channels[position].name
-        Glide.with(holder.logoView.context)
-            .load(channels[position].logo)
-            .into(holder.logoView)
+        nameView.text = channel.name
+        Glide.with(context)
+            .load(channel.logo)
+            .into(logoView)
+        return itemView
     }
 }

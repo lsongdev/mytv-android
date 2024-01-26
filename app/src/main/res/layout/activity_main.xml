@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
@@ -11,7 +12,10 @@
         android:layout_gravity="center"
         app:use_controller="false"
         android:background="@android:color/black"
-        />
+        >
+
+
+    </androidx.media3.ui.PlayerView>
 
     <LinearLayout
         android:id="@+id/menu_layout"
@@ -23,19 +27,44 @@
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/category_list"
-            android:layout_width="wrap_content"
+            android:layout_width="200dp"
             android:layout_height="match_parent"
-            android:scrollbars="vertical"
-            android:background="@android:color/transparent"
+            android:background="#55dddddd"
             />
 
-        <androidx.recyclerview.widget.RecyclerView
+        <ListView
+            android:layout_width="250dp"
+            android:layout_height="match_parent"
             android:id="@+id/channel_list"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:scrollbars="vertical"
+            android:background="#77dddddd"
             />
 
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/channel_info"
+        android:background="#77dddddd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="16dp"
+        android:padding="10dp"
+        android:radius="10dp"
+        >
+        <TextView
+            android:id="@+id/channel_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="48sp"
+            />
+        <TextView
+            android:id="@+id/channel_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:textSize="48sp"
+            />
     </LinearLayout>
 
 </RelativeLayout>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/holo_blue_bright" android:state_focused="true"  /> <!-- focused -->
+    <item android:drawable="@android:color/holo_orange_light" android:state_pressed="true" /> <!-- pressed -->
+    <item android:drawable="@android:color/holo_green_light" android:state_selected="true"/>
+    <item android:drawable="@android:color/transparent" /> <!-- default -->
+</selector>
