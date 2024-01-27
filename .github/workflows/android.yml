@@ -24,7 +24,8 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      # run: ./gradlew build
+      run: ./gradlew assembleDebug
 
     - name: Set current date as env variable
       run: |
@@ -35,5 +36,6 @@ jobs:
       with:
         tag_name: nightly-tag-${{ env.date }}
         name: release-${{ env.date }}
-        files: ./app/build/outputs/apk/release/app-release-unsigned.apk
+        files: ./app/build/outputs/apk/debug/app-debug.apk
+        # files: ./app/build/outputs/apk/release/app-release-unsigned.apk
         draft: false
