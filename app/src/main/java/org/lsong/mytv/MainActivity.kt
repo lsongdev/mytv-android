@@ -7,6 +7,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
+import android.view.View.GONE
 import android.view.View.OnFocusChangeListener
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -35,6 +36,10 @@ class MainActivity : Activity() {
         player.playWhenReady = true
         val playerView = findViewById<PlayerView>(R.id.player_view)
         playerView.player = player
+
+        val menuLayout = findViewById<LinearLayout>(R.id.menu_layout);
+        menuLayout.visibility = GONE
+
         this.loadData()
     }
     private fun handleData(data: MyResponse) {
@@ -43,13 +48,18 @@ class MainActivity : Activity() {
         channelView.setOnItemClickListener { parent, view, position, id ->
             this.playChannel(channels[position])
         }
+        fun selectCategory(category: Category) {
+            channels = category.channels.mapNotNull { channelMap[it] }
+            channelView.adapter = ChannelAdapter(this, channels)
+        }
         val categoryView = findViewById<RecyclerView>(R.id.category_list);
         categoryView.layoutManager = LinearLayoutManager(this)
         categoryView.adapter = CategoryAdapter(data.categories) { category ->
             // This code will be executed when a category item is clicked
-            channels = category.channels.mapNotNull { channelMap[it] }
-            channelView.adapter = ChannelAdapter(this, channels)
+            selectCategory(category)
         }
+        selectCategory(data.categories[0])
+        this.playChannel(channels[0])
     }
     private fun loadData() {
         val context = this
