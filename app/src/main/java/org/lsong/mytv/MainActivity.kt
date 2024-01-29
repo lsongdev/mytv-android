@@ -27,7 +27,6 @@ class MainActivity : Activity() {
     private lateinit var player : ExoPlayer
     private lateinit var channels: List<Channel>
     private var currentChannelIndex = 0
-    var isMenuOpen = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,7 +37,6 @@ class MainActivity : Activity() {
         playerView.player = player
         this.loadData()
     }
-
     private fun handleData(data: MyResponse) {
         val channelMap = data.channels.associateBy { it.name }
         val channelView = findViewById<ListView>(R.id.channel_list);
@@ -70,21 +68,6 @@ class MainActivity : Activity() {
                 Log.e("MainActivity", "Network Request Failed", t)
             }
         })
-    }
-
-    override fun onPause() {
-        player.pause()
-        super.onPause()
-    }
-
-    override fun onResume() {
-        player.play()
-        super.onResume()
-    }
-
-    override fun onStop() {
-        player.stop()
-        super.onStop()
     }
 
     private fun play(url: String){
@@ -150,5 +133,20 @@ class MainActivity : Activity() {
             }
         }
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onPause() {
+        player.pause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        player.play()
+        super.onResume()
+    }
+
+    override fun onStop() {
+        player.stop()
+        super.onStop()
     }
 }
