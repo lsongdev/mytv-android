@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="selected_item_color">#FFD700</color> <!-- 金色 -->
-    <color name="normal_item_color">#70000000</color>   <!-- 白色 -->
+    <color name="item_focused_color">#AAFFD700</color>
+    <color name="item_pressed_color">#57FFD700</color>
+    <color name="item_selected_color">#CCFFD700</color>
+    <color name="item_normal_color">#00000000</color>
 </resources>

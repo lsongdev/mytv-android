@@ -8,11 +8,12 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.View.GONE
-import android.view.View.OnFocusChangeListener
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -34,6 +35,10 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
         player = ExoPlayer.Builder(this).build()
         player.playWhenReady = true
+//        player.addListener(object : Player.EventListener {
+//
+//        }
+
         val playerView = findViewById<PlayerView>(R.id.player_view)
         playerView.player = player
 
@@ -114,8 +119,8 @@ class MainActivity : Activity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         val menuLayout = findViewById<LinearLayout>(R.id.menu_layout);
         when (keyCode) {
-            KeyEvent.KEYCODE_ENTER,
-            KeyEvent.KEYCODE_DPAD_CENTER -> {
+            KeyEvent.KEYCODE_MENU,
+            KeyEvent.KEYCODE_ENTER -> {
                 if (menuLayout.visibility == View.GONE) {
                     menuLayout.visibility = View.VISIBLE
                     return true

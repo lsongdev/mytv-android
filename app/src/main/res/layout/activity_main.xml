@@ -10,10 +10,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center"
-        app:use_controller="false"
+        android:keepScreenOn="true"
         android:background="@android:color/black"
+        app:use_controller="false"
         >
-
 
     </androidx.media3.ui.PlayerView>
 
