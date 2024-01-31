@@ -18,10 +18,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import org.lsong.mytv.api.ChannelCallback
-import org.lsong.mytv.api.MyResponse
-import org.lsong.mytv.api.RetrofitClient
-import java.lang.Error
 
 class MainActivity : Activity() {
 
