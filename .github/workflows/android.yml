@@ -1,0 +1,54 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.gradle/caches
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+        restore-keys: ${{ runner.os }}-gradle
+    
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    
+    - name: Build with Gradle
+      run: ./gradlew assembleDebug
+    
+    - name: Get app version
+      run: echo "APP_VERSION=$(./gradlew -q printVersionName)" >> $GITHUB_ENV
+    
+    - name: Set current date as env variable
+      run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+    
+    - name: Rename APK
+      run: mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/MyApp-${{ env.APP_VERSION }}-debug-${{ env.DATE }}.apk
+    
+    - name: Upload Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: nightly-${{ env.APP_VERSION }}-${{ env.DATE }}
+        name: Nightly Build ${{ env.APP_VERSION }} (${{ env.DATE }})
+        files: app/build/outputs/apk/debug/MyApp-${{ env.APP_VERSION }}-debug-${{ env.DATE }}.apk
+        draft: false
+        prerelease: true
