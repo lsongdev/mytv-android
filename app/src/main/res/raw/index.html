@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DuckTV</title>
+  <style>
+    @import url("https://lsong.org/css/stylesheet.css");
+    @import url("https://lsong.org/stylesheets/form.css");
+    @import url("https://lsong.org/stylesheets/input.css");
+    @import url("https://lsong.org/stylesheets/button.css");
+
+    textarea.input-block {
+      min-width: 100%;
+      max-width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container container-mobile">
+    <header>
+      <h1>DuckTV</h1>
+    </header>
+    <main>
+      <form id="settingsForm" class="form">
+        <h2>Settings</h2>
+        <div class="form-field">
+          <label>IPTV Source URLs</label>
+          <textarea class="input input-block" id="iptvSourceUrls" placeholder="每行一个URL"></textarea>
+        </div>
+        <div class="form-field">
+          <label>EPG URLs</label>
+          <textarea class="input input-block" id="epgUrls" placeholder="每行一个URL"></textarea>
+        </div>
+        <div class="form-field">
+          <button type="submit" class="button">保存设置</button>
+        </div>
+      </form>
+    </main>
+  </div>
+  <script type="module">
+    const ready = new Promise(done => window.addEventListener('load', done));
+    await ready;
+
+    const load = async () => {
+      const response = await fetch('/api/settings');
+      const settings = await response.json();
+      return settings;
+    };
+
+    const settings = await load();
+    document.getElementById('epgUrls').value = settings.epgUrls.join('\n');
+    document.getElementById('iptvSourceUrls').value = settings.iptvSourceUrls.join('\n');
+    const save = async (data) => {
+      try {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+        alert('设置已保存');
+        window.location.reload();
+      } catch (error) {
+        alert('保存失败:' + error);
+      }
+    };
+    // 提交表单时保存设置
+    document.getElementById('settingsForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const epgUrls = document.getElementById('epgUrls').value.split('\n').filter(url => url.trim() !== '');
+      const iptvSourceUrls = document.getElementById('iptvSourceUrls').value.split('\n').filter(url => url.trim() !== '');
+      const data = {
+        epgUrls: epgUrls,
+        iptvSourceUrls: iptvSourceUrls
+      };
+      save(data);
+    });
+  </script>
+</body>
+
+</html>
