@@ -1,5 +1,6 @@
 package me.lsong.mytv.ui.toast
 
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -44,6 +45,7 @@ class LeanbackToastState(private val coroutineScope: CoroutineScope) {
         duration: LeanbackToastProperty.Duration = LeanbackToastProperty.Duration.Default,
         id: String = UUID.randomUUID().toString(),
     ) {
+
         showToast(LeanbackToastProperty(message = message, duration = duration, id = id))
     }
 

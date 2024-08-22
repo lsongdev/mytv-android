@@ -2,7 +2,6 @@ package me.lsong.mytv.ui.settings.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
@@ -12,10 +11,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.foundation.lazy.list.TvLazyColumn
-import me.lsong.mytv.ui.settings.LeanbackSettingsViewModel
+import me.lsong.mytv.ui.settings.MyTvSettingsViewModel
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.utils.Constants
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 import me.lsong.mytv.utils.humanizeMs
 import java.text.DecimalFormat
 import kotlin.math.max
@@ -23,7 +22,7 @@ import kotlin.math.max
 @Composable
 fun LeanbackSettingsCategoryApp(
     modifier: Modifier = Modifier,
-    settingsViewModel: LeanbackSettingsViewModel = viewModel(),
+    settingsViewModel: MyTvSettingsViewModel = viewModel(),
     ) {
     Column (
         modifier = modifier.padding(5.dp),
@@ -119,14 +118,14 @@ fun LeanbackSettingsCategoryApp(
                 LeanbackSettingsCategoryListItem(
                     headlineContent = "全局画面比例",
                     trailingContent = when (settingsViewModel.videoPlayerAspectRatio) {
-                        SP.VideoPlayerAspectRatio.ORIGINAL -> "原始"
-                        SP.VideoPlayerAspectRatio.SIXTEEN_NINE -> "16:9"
-                        SP.VideoPlayerAspectRatio.FOUR_THREE -> "4:3"
-                        SP.VideoPlayerAspectRatio.AUTO -> "自动拉伸"
+                        Settings.VideoPlayerAspectRatio.ORIGINAL -> "原始"
+                        Settings.VideoPlayerAspectRatio.SIXTEEN_NINE -> "16:9"
+                        Settings.VideoPlayerAspectRatio.FOUR_THREE -> "4:3"
+                        Settings.VideoPlayerAspectRatio.AUTO -> "自动拉伸"
                     },
                     onSelected = {
                         settingsViewModel.videoPlayerAspectRatio =
-                            SP.VideoPlayerAspectRatio.entries.let {
+                            Settings.VideoPlayerAspectRatio.entries.let {
                                 it[(it.indexOf(settingsViewModel.videoPlayerAspectRatio) + 1) % it.size]
                             }
                     },
@@ -164,11 +163,11 @@ fun LeanbackSettingsCategoryApp(
 @Preview
 @Composable
 private fun LeanbackSettingsCategoryAppPreview() {
-    SP.init(LocalContext.current)
+    Settings.init(LocalContext.current)
     LeanbackTheme {
         LeanbackSettingsCategoryApp(
             modifier = Modifier.padding(20.dp),
-            settingsViewModel = LeanbackSettingsViewModel(),
+            settingsViewModel = MyTvSettingsViewModel(),
         )
     }
 }

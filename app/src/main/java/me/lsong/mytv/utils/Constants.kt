@@ -11,7 +11,7 @@ object Constants {
      */
     const val APP_NAME = "DuckTV"
 
-    val TIME_ZONE = java.util.Locale.CHINA
+    val TIME_ZONE: java.util.Locale = java.util.Locale.CHINA
 
     /**
      * IPTV源地址

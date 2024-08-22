@@ -1,6 +1,5 @@
 package me.lsong.mytv.ui.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,11 +21,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.lsong.mytv.rememberLeanbackChildPadding
 import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryContent
-import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryList
+import me.lsong.mytv.ui.settings.components.MyTvSettingsCategoryList
 import me.lsong.mytv.ui.theme.LeanbackTheme
 
 @Composable
-fun LeanbackSettingsScreen(
+fun MyTvSettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val childPadding = rememberLeanbackChildPadding()
@@ -36,7 +34,7 @@ fun LeanbackSettingsScreen(
         focusRequester.requestFocus()
     }
 
-    var focusedCategory by remember { mutableStateOf(LeanbackSettingsCategories.entries.first()) }
+    var focusedCategory by remember { mutableStateOf(MyTvSettingsCategories.entries.first()) }
 
     Box(
         modifier = modifier
@@ -53,7 +51,7 @@ fun LeanbackSettingsScreen(
         Row(
             horizontalArrangement = Arrangement.spacedBy(40.dp),
         ) {
-            LeanbackSettingsCategoryList(
+            MyTvSettingsCategoryList(
                 modifier = Modifier.width(200.dp),
                 focusedCategoryProvider = { focusedCategory },
                 onFocused = { focusedCategory = it },
@@ -69,6 +67,6 @@ fun LeanbackSettingsScreen(
 @Composable
 private fun LeanbackSettingsScreenPreview() {
     LeanbackTheme {
-        LeanbackSettingsScreen()
+        MyTvSettingsScreen()
     }
 }

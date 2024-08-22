@@ -5,7 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 
 abstract class LeanbackVideoPlayer(
     private val coroutineScope: CoroutineScope,
@@ -75,7 +75,7 @@ abstract class LeanbackVideoPlayer(
         onPreparedListeners.forEach { it() }
         loadTimeoutJob?.cancel()
         loadTimeoutJob = coroutineScope.launch {
-            delay(SP.videoPlayerLoadTimeout)
+            delay(Settings.videoPlayerLoadTimeout)
             triggerError(PlaybackException.LOAD_TIMEOUT)
         }
         cutoffTimeoutJob?.cancel()
@@ -90,7 +90,7 @@ abstract class LeanbackVideoPlayer(
         if (currentPosition != newPosition) {
             cutoffTimeoutJob?.cancel()
             cutoffTimeoutJob = coroutineScope.launch {
-                delay(SP.videoPlayerLoadTimeout)
+                delay(Settings.videoPlayerLoadTimeout)
                 onCutoffListeners.forEach { it() }
             }
         }

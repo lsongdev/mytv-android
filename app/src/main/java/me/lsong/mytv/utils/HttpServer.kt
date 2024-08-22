@@ -1,11 +1,10 @@
-package me.lsong.mytv.ui.utils
+package me.lsong.mytv.utils
 
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import com.koushikdutta.async.AsyncServer
 import com.koushikdutta.async.http.body.JSONObjectBody
-import com.koushikdutta.async.http.body.MultipartFormDataBody
 import com.koushikdutta.async.http.server.AsyncHttpServer
 import com.koushikdutta.async.http.server.AsyncHttpServerRequest
 import com.koushikdutta.async.http.server.AsyncHttpServerResponse
@@ -15,14 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import me.lsong.mytv.AppGlobal
 import me.lsong.mytv.R
-import me.lsong.mytv.epg.EpgRepository
-import me.lsong.mytv.iptv.IptvRepository
-import me.lsong.mytv.utils.Constants
-import me.lsong.mytv.utils.ApkInstaller
-import me.lsong.mytv.utils.SP
-import java.io.File
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.SocketException
@@ -31,7 +23,7 @@ object HttpServer  {
     private const val SERVER_PORT = 10481
     private var showToast: (String) -> Unit = { }
     val serverUrl: String by lazy {
-        "http://${getLocalIpAddress()}:${SERVER_PORT}"
+        "http://${getLocalIpAddress()}:$SERVER_PORT"
     }
 
     fun start(context: Context, showToast: (String) -> Unit) {
@@ -43,12 +35,6 @@ object HttpServer  {
                 server.get("/") { _, response ->
                     handleRawResource(response, context, "text/html", R.raw.index)
                 }
-                server.get("/index_css.css") { _, response ->
-                    handleRawResource(response, context, "text/css", R.raw.index_css)
-                }
-                server.get("/index_js.js") { _, response ->
-                    handleRawResource(response, context, "text/javascript", R.raw.index_js)
-                }
 
                 server.get("/api/settings") { _, response ->
                     handleGetSettings(response)
@@ -58,12 +44,8 @@ object HttpServer  {
                     handleSetSettings(request, response)
                 }
 
-                server.post("/api/upload/apk") { request, response ->
-                    // handleUploadApk(request, response, context)
-                }
-
                 HttpServer.showToast = showToast
-                Log.i("server", "服务已启动: 0.0.0.0:${SERVER_PORT}")
+                Log.i("server", "服务已启动: 0.0.0.0:$SERVER_PORT")
             } catch (ex: Exception) {
                 Log.e("server", "服务启动失败: ${ex.message}", ex)
                 launch(Dispatchers.Main) {
@@ -106,7 +88,7 @@ object HttpServer  {
                         // iptvSourceUrls = SP.iptvSourceUrls,
                         epgUrls = emptySet(),
                         iptvSourceUrls = emptySet(),
-                        videoPlayerUserAgent = SP.videoPlayerUserAgent,
+                        videoPlayerUserAgent = Settings.videoPlayerUserAgent,
                     )
                 )
             )

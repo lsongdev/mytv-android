@@ -6,12 +6,12 @@ import android.content.SharedPreferences
 /**
  * 应用配置存储
  */
-object SP {
-    private const val SP_NAME = "mytv"
+object Settings {
+    private const val SP_NAME = Constants.APP_NAME
     private const val SP_MODE = Context.MODE_PRIVATE
     private lateinit var sp: SharedPreferences
 
-    fun getInstance(context: Context): SharedPreferences =
+    private fun getInstance(context: Context): SharedPreferences =
         context.getSharedPreferences(SP_NAME, SP_MODE)
 
     fun init(context: Context) {

@@ -1,11 +1,6 @@
 package me.lsong.mytv.ui.widgets
 
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DisplaySettings
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,11 +23,11 @@ import me.lsong.mytv.iptv.TVGroupList.Companion.channels
 import me.lsong.mytv.iptv.TVGroupList.Companion.findGroupIndex
 import me.lsong.mytv.ui.components.MyTvChannelList
 import me.lsong.mytv.ui.components.MyTvGroupList
-import me.lsong.mytv.ui.settings.LeanbackSettingsCategories
+import me.lsong.mytv.ui.settings.MyTvSettingsCategories
 import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryContent
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.ui.toast.LeanbackToastState
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 import kotlin.math.max
 
@@ -56,8 +51,8 @@ fun MyTvMenu(
     }
     val focusedIptvFocusRequester by remember { mutableStateOf(FocusRequester.Default) }
     var isSettingsVisible by remember { mutableStateOf(false) }
-    var selectedCategoryProvider by remember { mutableStateOf(LeanbackSettingsCategories.entries.first()) }
-    val favoriteChannels by remember { mutableStateOf(SP.iptvChannelFavoriteList) }
+    var selectedCategoryProvider by remember { mutableStateOf(MyTvSettingsCategories.entries.first()) }
+    val favoriteChannels by remember { mutableStateOf(Settings.iptvChannelFavoriteList) }
     val favoriteGroup = TVGroup(
         title = "我的收藏",
         channels = TVChannelList(groupList.channels.filter { favoriteChannels.contains(it.name) })
@@ -66,12 +61,9 @@ fun MyTvMenu(
     val settingsGroup = TVGroup(
         title = "设置",
         channels = TVChannelList(
-            listOf(
-                TVChannel(title = "通用", icon = Icons.Default.DisplaySettings),
-                TVChannel(title = "直播源", icon = Icons.Default.LiveTv),
-                TVChannel(title = "节目单", icon = Icons.Default.Menu),
-                TVChannel(title = "关于", icon = Icons.Default.Info),
-            )
+            MyTvSettingsCategories.entries.map {
+                TVChannel(title = it.title, icon = it.icon)
+            }
         )
     )
 
@@ -109,24 +101,27 @@ fun MyTvMenu(
             focusedProvider = channelProvider,
             onUserAction = onUserAction,
             onSelected = {
-                if (focusedIptvGroup.title == "设置") {
+                if (focusedIptvGroup.title != settingsGroup.title) {
+                    onSelected(it)
+                }
+            },
+            onFocused = {
+                if (focusedIptvGroup.title == settingsGroup.title) {
                     isSettingsVisible = true
                     when(it.title) {
-                        LeanbackSettingsCategories.APP.title -> selectedCategoryProvider = LeanbackSettingsCategories.APP
-                        LeanbackSettingsCategories.IPTV.title -> selectedCategoryProvider = LeanbackSettingsCategories.IPTV
-                        LeanbackSettingsCategories.EPG.title -> selectedCategoryProvider = LeanbackSettingsCategories.EPG
-                        LeanbackSettingsCategories.ABOUT.title -> selectedCategoryProvider = LeanbackSettingsCategories.ABOUT
+                        MyTvSettingsCategories.APP.title -> selectedCategoryProvider = MyTvSettingsCategories.APP
+                        MyTvSettingsCategories.IPTV.title -> selectedCategoryProvider = MyTvSettingsCategories.IPTV
+                        MyTvSettingsCategories.EPG.title -> selectedCategoryProvider = MyTvSettingsCategories.EPG
+                        MyTvSettingsCategories.ABOUT.title -> selectedCategoryProvider = MyTvSettingsCategories.ABOUT
                     }
-                } else {
-                    onSelected(it)
                 }
             },
             onFavoriteToggle = {
                 if (favoriteChannels.contains(it.name)) {
-                    SP.iptvChannelFavoriteList -= it.name
+                    Settings.iptvChannelFavoriteList -= it.name
                     LeanbackToastState.I.showToast("取消收藏: ${it.title}")
                 } else {
-                    SP.iptvChannelFavoriteList += it.name
+                    Settings.iptvChannelFavoriteList += it.name
                     LeanbackToastState.I.showToast("收藏: ${it.title}")
                 }
             }

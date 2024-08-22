@@ -26,7 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 import androidx.media3.common.PlaybackException as Media3PlaybackException
 
 @OptIn(UnstableApi::class)
@@ -48,9 +48,9 @@ class LeanbackMedia3VideoPlayer(
     private fun prepare(uri: Uri, contentType: Int? = null) {
         val dataSourceFactory =
             DefaultDataSource.Factory(context, DefaultHttpDataSource.Factory().apply {
-                setUserAgent(SP.videoPlayerUserAgent)
-                setConnectTimeoutMs(SP.videoPlayerLoadTimeout.toInt())
-                setReadTimeoutMs(SP.videoPlayerLoadTimeout.toInt())
+                setUserAgent(Settings.videoPlayerUserAgent)
+                setConnectTimeoutMs(Settings.videoPlayerLoadTimeout.toInt())
+                setReadTimeoutMs(Settings.videoPlayerLoadTimeout.toInt())
                 setKeepPostFor302Redirects(true)
                 setAllowCrossProtocolRedirects(true)
             })

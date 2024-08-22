@@ -16,15 +16,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.foundation.lazy.list.TvLazyColumn
-import me.lsong.mytv.ui.settings.LeanbackSettingsViewModel
+import me.lsong.mytv.ui.settings.MyTvSettingsViewModel
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.utils.Constants.APP_NAME
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 
 @Composable
 fun LeanbackSettingsCategoryEpg(
     modifier: Modifier = Modifier,
-    settingsViewModel: LeanbackSettingsViewModel = viewModel(),
+    settingsViewModel: MyTvSettingsViewModel = viewModel(),
 ) {
     TvLazyColumn (
         modifier = modifier.padding(5.dp),
@@ -68,11 +68,11 @@ fun LeanbackSettingsCategoryEpg(
 @Preview
 @Composable
 private fun LeanbackSettingsCategoryEpgPreview() {
-    SP.init(LocalContext.current)
+    Settings.init(LocalContext.current)
     LeanbackTheme {
         LeanbackSettingsCategoryEpg(
             modifier = Modifier.padding(20.dp),
-            settingsViewModel = LeanbackSettingsViewModel().apply {
+            settingsViewModel = MyTvSettingsViewModel().apply {
             }
         )
     }

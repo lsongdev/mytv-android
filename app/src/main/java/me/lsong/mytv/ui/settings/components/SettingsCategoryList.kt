@@ -24,16 +24,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.foundation.lazy.list.TvLazyColumn
 import androidx.tv.foundation.lazy.list.itemsIndexed
-import me.lsong.mytv.ui.settings.LeanbackSettingsCategories
+import me.lsong.mytv.ui.settings.MyTvSettingsCategories
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun LeanbackSettingsCategoryList(
+fun MyTvSettingsCategoryList(
     modifier: Modifier = Modifier,
-    focusedCategoryProvider: () -> LeanbackSettingsCategories = { LeanbackSettingsCategories.entries.first() },
-    onFocused: (LeanbackSettingsCategories) -> Unit = {},
+    focusedCategoryProvider: () -> MyTvSettingsCategories = { MyTvSettingsCategories.entries.first() },
+    onFocused: (MyTvSettingsCategories) -> Unit = {},
 ) {
     var hasFocused = rememberSaveable { false }
 
@@ -42,7 +42,7 @@ fun LeanbackSettingsCategoryList(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = modifier.focusRestorer()
     ) {
-        itemsIndexed(LeanbackSettingsCategories.entries) { index, category ->
+        itemsIndexed(MyTvSettingsCategories.entries) { index, category ->
             val isSelected by remember { derivedStateOf { focusedCategoryProvider() == category } }
             val focusRequester = remember { FocusRequester() }
             LaunchedEffect(Unit) {
@@ -105,13 +105,13 @@ private fun LeanbackSettingsCategoryItemPreview() {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             LeanbackSettingsCategoryItem(
-                icon = LeanbackSettingsCategories.ABOUT.icon,
-                title = LeanbackSettingsCategories.ABOUT.title,
+                icon = MyTvSettingsCategories.ABOUT.icon,
+                title = MyTvSettingsCategories.ABOUT.title,
             )
 
             LeanbackSettingsCategoryItem(
-                icon = LeanbackSettingsCategories.ABOUT.icon,
-                title = LeanbackSettingsCategories.ABOUT.title,
+                icon = MyTvSettingsCategories.ABOUT.icon,
+                title = MyTvSettingsCategories.ABOUT.title,
                 isSelectedProvider = { true },
             )
         }
@@ -122,6 +122,6 @@ private fun LeanbackSettingsCategoryItemPreview() {
 @Composable
 private fun LeanbackSettingsCategoryListPreview() {
     LeanbackTheme {
-        LeanbackSettingsCategoryList()
+        MyTvSettingsCategoryList()
     }
 }

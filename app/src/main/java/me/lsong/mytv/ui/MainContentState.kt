@@ -19,7 +19,7 @@ import me.lsong.mytv.iptv.TVGroupList.Companion.findChannelIndex
 import me.lsong.mytv.utils.Constants
 import me.lsong.mytv.ui.player.LeanbackVideoPlayerState
 import me.lsong.mytv.ui.player.rememberLeanbackVideoPlayerState
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 import kotlin.math.max
 
 @Stable
@@ -52,7 +52,7 @@ class MainContentState(
         get() = tvGroupList.findChannelIndex(_currentChannel)
 
     init {
-        changeCurrentChannel(tvGroupList.channels.getOrElse(SP.iptvLastIptvIdx) {
+        changeCurrentChannel(tvGroupList.channels.getOrElse(Settings.iptvLastIptvIdx) {
             tvGroupList.firstOrNull()?.channels?.firstOrNull() ?: TVChannel()
         })
 
@@ -67,7 +67,7 @@ class MainContentState(
             }
 
             // 记忆可播放的域名
-            SP.iptvPlayableHostList += getUrlHost(_currentChannel.urls[_currentIptvUrlIdx])
+            Settings.iptvPlayableHostList += getUrlHost(_currentChannel.urls[_currentIptvUrlIdx])
         }
 
         videoPlayerState.onError {
@@ -76,7 +76,7 @@ class MainContentState(
             }
 
             // 从记忆中删除不可播放的域名
-            SP.iptvPlayableHostList -= getUrlHost(_currentChannel.urls[_currentIptvUrlIdx])
+            Settings.iptvPlayableHostList -= getUrlHost(_currentChannel.urls[_currentIptvUrlIdx])
         }
 
         videoPlayerState.onCutoff {
@@ -102,17 +102,17 @@ class MainContentState(
         // isChannelInfoVisible = false
         if (channel == _currentChannel && urlIdx == null) return
         if (channel == _currentChannel && urlIdx != _currentIptvUrlIdx) {
-            SP.iptvPlayableHostList -= getUrlHost(_currentChannel.urls[_currentIptvUrlIdx])
+            Settings.iptvPlayableHostList -= getUrlHost(_currentChannel.urls[_currentIptvUrlIdx])
         }
         // _isTempPanelVisible = true
 
         _currentChannel = channel
-        SP.iptvLastIptvIdx = currentChannelIndex
+        Settings.iptvLastIptvIdx = currentChannelIndex
 
         _currentIptvUrlIdx = if (urlIdx == null) {
             // 优先从记忆中选择可播放的域名
             max(0, _currentChannel.urls.indexOfFirst {
-                SP.iptvPlayableHostList.contains(getUrlHost(it))
+                Settings.iptvPlayableHostList.contains(getUrlHost(it))
             })
         } else {
             (urlIdx + _currentChannel.urls.size) % _currentChannel.urls.size

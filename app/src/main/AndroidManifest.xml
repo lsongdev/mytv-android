@@ -26,8 +26,9 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
-            android:name=".LeanbackActivity"
+            android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="landscape"
             android:theme="@style/Theme.MyTV">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

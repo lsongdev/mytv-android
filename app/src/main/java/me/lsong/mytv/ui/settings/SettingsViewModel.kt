@@ -7,79 +7,79 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 
-class LeanbackSettingsViewModel : ViewModel() {
-    private var _appBootLaunch by mutableStateOf(SP.appBootLaunch)
+class MyTvSettingsViewModel : ViewModel() {
+    private var _appBootLaunch by mutableStateOf(Settings.appBootLaunch)
     var appBootLaunch: Boolean
         get() = _appBootLaunch
         set(value) {
             _appBootLaunch = value
-            SP.appBootLaunch = value
+            Settings.appBootLaunch = value
         }
 
-    private var _appDeviceDisplayType by mutableStateOf(SP.appDeviceDisplayType)
-    var appDeviceDisplayType: SP.AppDeviceDisplayType
+    private var _appDeviceDisplayType by mutableStateOf(Settings.appDeviceDisplayType)
+    var appDeviceDisplayType: Settings.AppDeviceDisplayType
         get() = _appDeviceDisplayType
         set(value) {
             _appDeviceDisplayType = value
-            SP.appDeviceDisplayType = value
+            Settings.appDeviceDisplayType = value
         }
 
-    private var _debugShowFps by mutableStateOf(SP.debugShowFps)
+    private var _debugShowFps by mutableStateOf(Settings.debugShowFps)
     var debugShowFps: Boolean
         get() = _debugShowFps
         set(value) {
             _debugShowFps = value
-            SP.debugShowFps = value
+            Settings.debugShowFps = value
         }
 
-    private var _debugShowVideoPlayerMetadata by mutableStateOf(SP.debugShowVideoPlayerMetadata)
+    private var _debugShowVideoPlayerMetadata by mutableStateOf(Settings.debugShowVideoPlayerMetadata)
     var debugShowVideoPlayerMetadata: Boolean
         get() = _debugShowVideoPlayerMetadata
         set(value) {
             _debugShowVideoPlayerMetadata = value
-            SP.debugShowVideoPlayerMetadata = value
+            Settings.debugShowVideoPlayerMetadata = value
         }
 
-    private var _iptvLastIptvIdx by mutableIntStateOf(SP.iptvLastIptvIdx)
+    private var _iptvLastIptvIdx by mutableIntStateOf(Settings.iptvLastIptvIdx)
     var iptvLastIptvIdx: Int
         get() = _iptvLastIptvIdx
         set(value) {
             _iptvLastIptvIdx = value
-            SP.iptvLastIptvIdx = value
+            Settings.iptvLastIptvIdx = value
         }
 
-    private var _iptvChannelChangeFlip by mutableStateOf(SP.iptvChannelChangeFlip)
+    private var _iptvChannelChangeFlip by mutableStateOf(Settings.iptvChannelChangeFlip)
     var iptvChannelChangeFlip: Boolean
         get() = _iptvChannelChangeFlip
         set(value) {
             _iptvChannelChangeFlip = value
-            SP.iptvChannelChangeFlip = value
+            Settings.iptvChannelChangeFlip = value
         }
 
-    private var _iptvSourceCacheTime by mutableLongStateOf(SP.iptvSourceCacheTime)
+    private var _iptvSourceCacheTime by mutableLongStateOf(Settings.iptvSourceCacheTime)
     var iptvSourceCacheTime: Long
         get() = _iptvSourceCacheTime
         set(value) {
             _iptvSourceCacheTime = value
-            SP.iptvSourceCacheTime = value
+            Settings.iptvSourceCacheTime = value
         }
 
-    private var _iptvSourceUrls by mutableStateOf(SP.iptvSourceUrls)
+    private var _iptvSourceUrls by mutableStateOf(Settings.iptvSourceUrls)
     var iptvSourceUrls: Set<String>
         get() = _iptvSourceUrls
         set(value) {
             _iptvSourceUrls = value
-            SP.iptvSourceUrls = value
+            Settings.iptvSourceUrls = value
         }
 
-    private var _iptvPlayableHostList by mutableStateOf(SP.iptvPlayableHostList)
+    private var _iptvPlayableHostList by mutableStateOf(Settings.iptvPlayableHostList)
     var iptvPlayableHostList: Set<String>
         get() = _iptvPlayableHostList
         set(value) {
             _iptvPlayableHostList = value
-            SP.iptvPlayableHostList = value
+            Settings.iptvPlayableHostList = value
         }
 
     // private var _iptvSourceUrlHistoryList by mutableStateOf(SP.iptvSourceUrlHistoryList)
@@ -90,83 +90,83 @@ class LeanbackSettingsViewModel : ViewModel() {
     //         SP.iptvSourceUrlHistoryList = value
     //     }
 
-    private var _iptvChannelFavoriteList by mutableStateOf(SP.iptvChannelFavoriteList)
+    private var _iptvChannelFavoriteList by mutableStateOf(Settings.iptvChannelFavoriteList)
     var iptvChannelFavoriteList: Set<String>
         get() = _iptvChannelFavoriteList
         set(value) {
             _iptvChannelFavoriteList = value
-            SP.iptvChannelFavoriteList = value
+            Settings.iptvChannelFavoriteList = value
         }
 
-    private var _epgRefreshTimeThreshold by mutableIntStateOf(SP.epgRefreshTimeThreshold)
+    private var _epgRefreshTimeThreshold by mutableIntStateOf(Settings.epgRefreshTimeThreshold)
     var epgRefreshTimeThreshold: Int
         get() = _epgRefreshTimeThreshold
         set(value) {
             _epgRefreshTimeThreshold = value
-            SP.epgRefreshTimeThreshold = value
+            Settings.epgRefreshTimeThreshold = value
         }
 
-    private var _epgXmlUrlHistoryList by mutableStateOf(SP.epgUrls)
+    private var _epgXmlUrlHistoryList by mutableStateOf(Settings.epgUrls)
     var epgUrls: Set<String>
         get() = _epgXmlUrlHistoryList
         set(value) {
             _epgXmlUrlHistoryList = value
-            SP.epgUrls = value
+            Settings.epgUrls = value
         }
 
-    private var _uiDensityScaleRatio by mutableFloatStateOf(SP.uiDensityScaleRatio)
+    private var _uiDensityScaleRatio by mutableFloatStateOf(Settings.uiDensityScaleRatio)
     var uiDensityScaleRatio: Float
         get() = _uiDensityScaleRatio
         set(value) {
             _uiDensityScaleRatio = value
-            SP.uiDensityScaleRatio = value
+            Settings.uiDensityScaleRatio = value
         }
 
-    private var _uiFontScaleRatio by mutableFloatStateOf(SP.uiFontScaleRatio)
+    private var _uiFontScaleRatio by mutableFloatStateOf(Settings.uiFontScaleRatio)
     var uiFontScaleRatio: Float
         get() = _uiFontScaleRatio
         set(value) {
             _uiFontScaleRatio = value
-            SP.uiFontScaleRatio = value
+            Settings.uiFontScaleRatio = value
         }
 
-    private var _uiTimeShowMode by mutableStateOf(SP.uiTimeShowMode)
-    var uiTimeShowMode: SP.UiTimeShowMode
+    private var _uiTimeShowMode by mutableStateOf(Settings.uiTimeShowMode)
+    var uiTimeShowMode: Settings.UiTimeShowMode
         get() = _uiTimeShowMode
         set(value) {
             _uiTimeShowMode = value
-            SP.uiTimeShowMode = value
+            Settings.uiTimeShowMode = value
         }
 
-    private var _uiPipMode by mutableStateOf(SP.uiPipMode)
+    private var _uiPipMode by mutableStateOf(Settings.uiPipMode)
     var uiPipMode: Boolean
         get() = _uiPipMode
         set(value) {
             _uiPipMode = value
-            SP.uiPipMode = value
+            Settings.uiPipMode = value
         }
 
-    private var _videoPlayerUserAgent by mutableStateOf(SP.videoPlayerUserAgent)
+    private var _videoPlayerUserAgent by mutableStateOf(Settings.videoPlayerUserAgent)
     var videoPlayerUserAgent: String
         get() = _videoPlayerUserAgent
         set(value) {
             _videoPlayerUserAgent = value
-            SP.videoPlayerUserAgent = value
+            Settings.videoPlayerUserAgent = value
         }
 
-    private var _videoPlayerLoadTimeout by mutableLongStateOf(SP.videoPlayerLoadTimeout)
+    private var _videoPlayerLoadTimeout by mutableLongStateOf(Settings.videoPlayerLoadTimeout)
     var videoPlayerLoadTimeout: Long
         get() = _videoPlayerLoadTimeout
         set(value) {
             _videoPlayerLoadTimeout = value
-            SP.videoPlayerLoadTimeout = value
+            Settings.videoPlayerLoadTimeout = value
         }
 
-    private var _videoPlayerAspectRatio by mutableStateOf(SP.videoPlayerAspectRatio)
-    var videoPlayerAspectRatio: SP.VideoPlayerAspectRatio
+    private var _videoPlayerAspectRatio by mutableStateOf(Settings.videoPlayerAspectRatio)
+    var videoPlayerAspectRatio: Settings.VideoPlayerAspectRatio
         get() = _videoPlayerAspectRatio
         set(value) {
             _videoPlayerAspectRatio = value
-            SP.videoPlayerAspectRatio = value
+            Settings.videoPlayerAspectRatio = value
         }
 }

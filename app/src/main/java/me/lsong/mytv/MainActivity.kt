@@ -1,6 +1,8 @@
 package me.lsong.mytv
 
 import android.app.PictureInPictureParams
+import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Rational
@@ -34,27 +36,18 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.debounce
-import me.lsong.mytv.ui.components.LeanbackPadding
 import me.lsong.mytv.ui.LoadingScreen
+import me.lsong.mytv.ui.components.LeanbackPadding
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.ui.toast.LeanbackToastScreen
 import me.lsong.mytv.ui.toast.LeanbackToastState
-import me.lsong.mytv.ui.utils.HttpServer
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.HttpServer
+import me.lsong.mytv.utils.Settings
 import kotlin.system.exitProcess
 
-class LeanbackActivity : ComponentActivity() {
-    override fun onUserLeaveHint() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        if (!SP.uiPipMode) return
 
-        enterPictureInPictureMode(
-            PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
-                .build()
-        )
-        super.onUserLeaveHint()
-    }
+class MainActivity : ComponentActivity() {
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,9 +81,35 @@ class LeanbackActivity : ComponentActivity() {
             }
         }
 
+        // Check if the device is a TV
+        if (isTVDevice()) {
+            // No need to force orientation for TV
+        } else {
+            // Force landscape mode on non-TV devices
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+        }
+
+
         HttpServer.start(applicationContext, showToast = {
             LeanbackToastState.I.showToast(it, id = "httpServer")
         })
+    }
+
+    private fun isTVDevice(): Boolean {
+        return (packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION) ||
+                packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK))
+    }
+
+    override fun onUserLeaveHint() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!Settings.uiPipMode) return
+
+        enterPictureInPictureMode(
+            PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(16, 9))
+                .build()
+        )
+        super.onUserLeaveHint()
     }
 }
 
@@ -100,9 +119,7 @@ fun LeanbackApp(
     modifier: Modifier = Modifier,
     onBackPressed: () -> Unit = {},
 ) {
-    val context = LocalContext.current
     val doubleBackPressedExitState = rememberLeanbackDoubleBackPressedExitState()
-
     LeanbackToastScreen()
     LoadingScreen(
         modifier = modifier,

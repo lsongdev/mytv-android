@@ -41,9 +41,9 @@ import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import me.lsong.mytv.R
 import me.lsong.mytv.rememberLeanbackChildPadding
 import me.lsong.mytv.ui.components.LeanbackVisible
-import me.lsong.mytv.ui.settings.LeanbackSettingsScreen
+import me.lsong.mytv.ui.settings.MyTvSettingsScreen
 import me.lsong.mytv.ui.theme.LeanbackTheme
-import me.lsong.mytv.ui.utils.HttpServer
+import me.lsong.mytv.utils.HttpServer
 import me.lsong.mytv.utils.Constants
 
 @Composable
@@ -69,8 +69,6 @@ fun LoadingScreen(
         is LeanbackMainUiState.Error -> LeanbackMainSettingsHandle(onBackPressed = onBackPressed) {
             LeanbackMainScreenError({ s.message })
         }
-
-        else -> {}
     }
 }
 
@@ -219,6 +217,8 @@ private fun LeanbackMainSettingsHandle(
     LeanbackBackPressHandledArea(onBackPressed = {
         if (showSettings) {
             showSettings = false
+            onBackPressed()
+            onBackPressed()
         } else {
             showSettings = true
         }
@@ -230,7 +230,7 @@ private fun LeanbackMainSettingsHandle(
         ) {
             content()
             LeanbackVisible({ showSettings }) {
-                LeanbackSettingsScreen()
+                MyTvSettingsScreen()
             }
         }
     }

@@ -22,11 +22,11 @@ import me.lsong.mytv.iptv.TVGroupList
 import me.lsong.mytv.ui.components.LeanbackVisible
 import me.lsong.mytv.ui.components.LeanbackMonitorScreen
 import me.lsong.mytv.ui.player.MyTvVideoScreen
-import me.lsong.mytv.ui.settings.LeanbackSettingsViewModel
 import me.lsong.mytv.ui.player.rememberLeanbackVideoPlayerState
+import me.lsong.mytv.ui.settings.MyTvSettingsViewModel
 import me.lsong.mytv.ui.widgets.MyTvMenu
 import me.lsong.mytv.ui.widgets.MyTvNowPlaying
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 import me.lsong.mytv.utils.handleLeanbackDragGestures
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 
@@ -36,16 +36,16 @@ fun LeanbackMainContent(
     onBackPressed: () -> Unit = {},
     epgList: EpgList = EpgList(),
     groupList: TVGroupList = TVGroupList(),
-    settingsViewModel: LeanbackSettingsViewModel = viewModel(),
+    settingsViewModel: MyTvSettingsViewModel = viewModel(),
 ) {
     val configuration = LocalConfiguration.current
     val videoPlayerState = rememberLeanbackVideoPlayerState(
         defaultAspectRatioProvider = {
             when (settingsViewModel.videoPlayerAspectRatio) {
-                SP.VideoPlayerAspectRatio.ORIGINAL -> null
-                SP.VideoPlayerAspectRatio.SIXTEEN_NINE -> 16f / 9f
-                SP.VideoPlayerAspectRatio.FOUR_THREE -> 4f / 3f
-                SP.VideoPlayerAspectRatio.AUTO -> {
+                Settings.VideoPlayerAspectRatio.ORIGINAL -> null
+                Settings.VideoPlayerAspectRatio.SIXTEEN_NINE -> 16f / 9f
+                Settings.VideoPlayerAspectRatio.FOUR_THREE -> 4f / 3f
+                Settings.VideoPlayerAspectRatio.AUTO -> {
                     configuration.screenHeightDp.toFloat() / configuration.screenWidthDp.toFloat()
                 }
             }

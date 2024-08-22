@@ -4,37 +4,24 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.foundation.lazy.list.TvLazyColumn
-import androidx.tv.material3.Icon
-import androidx.tv.material3.Text
-import me.lsong.mytv.utils.Constants
-import me.lsong.mytv.ui.components.LeanbackQrcodeDialog
-import me.lsong.mytv.ui.settings.LeanbackSettingsViewModel
+import me.lsong.mytv.ui.settings.MyTvSettingsViewModel
 import me.lsong.mytv.ui.theme.LeanbackTheme
+import me.lsong.mytv.utils.Constants
 
 @Composable
 fun LeanbackSettingsCategoryAbout(
     modifier: Modifier = Modifier,
     packageInfo: PackageInfo = rememberPackageInfo(),
-    settingsViewModel: LeanbackSettingsViewModel = viewModel(),
+    settingsViewModel: MyTvSettingsViewModel = viewModel(),
 ) {
     Column (
         modifier = modifier.padding(5.dp),
@@ -47,8 +34,8 @@ fun LeanbackSettingsCategoryAbout(
         ) {
             item {
                 LeanbackSettingsCategoryListItem(
-                    headlineContent = "应用名称",
-                    trailingContent = "${Constants.APP_NAME} ${packageInfo.versionName}",
+                    headlineContent = Constants.APP_NAME,
+                    trailingContent = packageInfo.versionName,
                 )
             }
 

@@ -11,12 +11,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import me.lsong.mytv.ui.settings.LeanbackSettingsCategories
+import me.lsong.mytv.ui.settings.MyTvSettingsCategories
 
 @Composable
 fun LeanbackSettingsCategoryContent(
     modifier: Modifier = Modifier,
-    focusedCategoryProvider: () -> LeanbackSettingsCategories = { LeanbackSettingsCategories.entries.first() },
+    focusedCategoryProvider: () -> MyTvSettingsCategories = { MyTvSettingsCategories.entries.first() },
 ) {
     val focusedCategory = focusedCategoryProvider()
 
@@ -32,10 +32,10 @@ fun LeanbackSettingsCategoryContent(
             Text(text = focusedCategory.title, style = MaterialTheme.typography.headlineSmall)
 
             when (focusedCategory) {
-                LeanbackSettingsCategories.ABOUT -> LeanbackSettingsCategoryAbout()
-                LeanbackSettingsCategories.APP -> LeanbackSettingsCategoryApp()
-                LeanbackSettingsCategories.IPTV -> LeanbackSettingsCategoryIptv()
-                LeanbackSettingsCategories.EPG -> LeanbackSettingsCategoryEpg()
+                MyTvSettingsCategories.ABOUT -> LeanbackSettingsCategoryAbout()
+                MyTvSettingsCategories.APP -> LeanbackSettingsCategoryApp()
+                MyTvSettingsCategories.IPTV -> LeanbackSettingsCategoryIptv()
+                MyTvSettingsCategories.EPG -> LeanbackSettingsCategoryEpg()
             }
         }
     }

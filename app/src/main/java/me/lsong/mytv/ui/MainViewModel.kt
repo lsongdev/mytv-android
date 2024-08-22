@@ -20,7 +20,7 @@ import me.lsong.mytv.iptv.TVSource
 import me.lsong.mytv.epg.EpgRepository
 import me.lsong.mytv.iptv.IptvRepository
 import me.lsong.mytv.utils.Constants
-import me.lsong.mytv.utils.SP
+import me.lsong.mytv.utils.Settings
 
 class MainViewModel : ViewModel() {
     private val iptvRepository = IptvRepository()
@@ -46,8 +46,8 @@ class MainViewModel : ViewModel() {
         //     "https://raw.githubusercontent.com/fanmingming/live/main/tv/m3u/index.m3u",
         // )
 
-        if (SP.iptvSourceUrls.isNotEmpty()) {
-            iptvUrls += SP.iptvSourceUrls
+        if (Settings.iptvSourceUrls.isNotEmpty()) {
+            iptvUrls += Settings.iptvSourceUrls
         }
         if (iptvUrls.isEmpty()) {
             iptvUrls += Constants.IPTV_SOURCE_URL
@@ -75,7 +75,7 @@ class MainViewModel : ViewModel() {
         }
             .catch { error ->
                 _uiState.value = LeanbackMainUiState.Error(error.message)
-                SP.iptvSourceUrlHistoryList -= iptvUrls.toList()
+                Settings.iptvSourceUrlHistoryList -= iptvUrls.toList()
             }
             .collect { result ->
                 when (result) {
@@ -89,7 +89,7 @@ class MainViewModel : ViewModel() {
                             tvGroupList = result.groupList,
                             epgList = result.epgList
                         )
-                        SP.iptvSourceUrlHistoryList += iptvUrls.toList()
+                        Settings.iptvSourceUrlHistoryList += iptvUrls.toList()
                     }
                 }
             }

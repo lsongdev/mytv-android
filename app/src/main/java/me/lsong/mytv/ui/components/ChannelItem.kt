@@ -94,7 +94,7 @@ fun MyTvChannelItem(
                     ),
                 ),
                 selected = isSelectedProvider(),
-                onClick = { },
+                onClick = { onSelected() },
                 leadingContent = {
                     if (iptv.icon != null) {
                         androidx.tv.material3.Icon(iptv.icon, iptv.title)
