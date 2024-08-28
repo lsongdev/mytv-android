@@ -40,7 +40,7 @@ data class TVGroupList(
 ) : List<TVGroup> by value {
     companion object {
         val EXAMPLE = TVGroupList(List(5) { groupIdx ->
-            TVGroup.EXAMPLE
+            TVGroup.EXAMPLE.copy(title = "Group $groupIdx")
         })
 
         fun TVGroupList.findGroupIndex(iptv: TVChannel) =

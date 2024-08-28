@@ -15,7 +15,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 import me.lsong.mytv.epg.EpgList
@@ -26,8 +25,8 @@ import me.lsong.mytv.ui.player.MyTvVideoScreen
 import me.lsong.mytv.ui.player.rememberLeanbackVideoPlayerState
 import me.lsong.mytv.ui.settings.MyTvSettingsViewModel
 import me.lsong.mytv.ui.widgets.MyTvMenu
+import me.lsong.mytv.ui.widgets.MyTvMenuWidget
 import me.lsong.mytv.ui.widgets.MyTvNowPlaying
-import me.lsong.mytv.utils.Settings
 import me.lsong.mytv.utils.handleLeanbackDragGestures
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 
@@ -119,11 +118,10 @@ fun LeanbackMainContent(
         )
 
         LeanbackVisible({ mainContentState.isMenuVisible && !mainContentState.isChannelInfoVisible }) {
-            MyTvMenu(
-                epgListProvider = { epgList },
+            MyTvMenuWidget(
                 groupListProvider = { groupList },
+                epgListProvider = { epgList },
                 channelProvider = { mainContentState.currentChannel },
-                onClose = { mainContentState.isMenuVisible = false },
                 onSelected = { channel -> mainContentState.changeCurrentChannel(channel) }
             )
         }

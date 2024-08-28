@@ -1,160 +1,365 @@
 package me.lsong.mytv.ui.widgets
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import me.lsong.mytv.epg.EpgChannel
+import androidx.compose.ui.unit.dp
+import androidx.tv.foundation.lazy.list.TvLazyColumn
+import androidx.tv.foundation.lazy.list.itemsIndexed
+import androidx.tv.foundation.lazy.list.rememberTvLazyListState
+import androidx.tv.material3.Icon
+import androidx.tv.material3.ListItemDefaults
+import coil.compose.AsyncImage
+import kotlinx.coroutines.flow.distinctUntilChanged
 import me.lsong.mytv.epg.EpgList
-import me.lsong.mytv.epg.EpgProgramme
+import me.lsong.mytv.epg.EpgList.Companion.currentProgrammes
 import me.lsong.mytv.iptv.TVChannel
-import me.lsong.mytv.iptv.TVChannelList
-import me.lsong.mytv.iptv.TVGroup
 import me.lsong.mytv.iptv.TVGroupList
 import me.lsong.mytv.iptv.TVGroupList.Companion.channels
 import me.lsong.mytv.iptv.TVGroupList.Companion.findGroupIndex
-import me.lsong.mytv.ui.components.MyTvChannelList
-import me.lsong.mytv.ui.components.MyTvGroupList
-import me.lsong.mytv.ui.settings.MyTvSettingsCategories
-import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryContent
 import me.lsong.mytv.ui.theme.LeanbackTheme
-import me.lsong.mytv.ui.toast.LeanbackToastState
-import me.lsong.mytv.utils.Settings
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
-import kotlin.math.max
 
-@OptIn(ExperimentalComposeUiApi::class)
+data class MyTvMenuItem(
+    val icon: Any? = null,
+    val title: String = "",
+    val description: String? = null
+)
+
+@Composable
+fun MyTvMenuItem(
+    modifier: Modifier = Modifier,
+    menuItemProvider: () -> MyTvMenuItem = { MyTvMenuItem(title = "") },
+    focusRequesterProvider: () -> FocusRequester = { FocusRequester() },
+    isSelectedProvider: () -> Boolean = { false },
+    isFocusedProvider: () -> Boolean = { false },
+    onSelected: () -> Unit = {},
+    onFocused: (MyTvMenuItem) -> Unit = {},
+    onFavoriteToggle: () -> Unit = {}
+) {
+    val menuItem = menuItemProvider()
+    val focusRequester = focusRequesterProvider()
+    var isFocused by remember { mutableStateOf(isFocusedProvider()) }
+
+    CompositionLocalProvider(
+        LocalContentColor provides if (isFocused) MaterialTheme.colorScheme.background
+        else MaterialTheme.colorScheme.onBackground
+    ) {
+        Box(
+            modifier = Modifier.clip(ListItemDefaults.shape().shape),
+        ) {
+            androidx.tv.material3.ListItem(
+                modifier = modifier
+                    .focusRequester(focusRequester)
+                    .onFocusChanged {
+                        isFocused = it.isFocused || it.hasFocus
+                        if (isFocused) {
+                            onFocused(menuItem)
+                        }
+                    }
+                    .handleLeanbackKeyEvents(
+                        key = menuItem.hashCode(),
+                        onSelect = {
+                            if (isFocused) onSelected()
+                            else focusRequester.requestFocus()
+                        },
+                        onLongSelect = {
+                            if (isFocused) onFavoriteToggle()
+                            else focusRequester.requestFocus()
+                        },
+                    ),
+                colors = ListItemDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.onBackground,
+                    selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                ),
+                onClick = { onSelected() },
+                selected = isSelectedProvider(),
+                leadingContent = menuItem.icon?.let { icon ->
+                    {
+                        when (icon) {
+                            is ImageVector -> Icon(
+                                imageVector = icon,
+                                contentDescription = menuItem.title,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            is String -> if (icon.isEmpty()) {
+                                Text(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(color = MaterialTheme.colorScheme.primary)
+                                        .wrapContentHeight(align = Alignment.CenterVertically),
+                                    textAlign = TextAlign.Center,
+                                    text = menuItem.title.take(2).uppercase(),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            } else {
+                                AsyncImage(
+                                    model = menuItem.icon,
+                                    contentDescription = menuItem.title,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+                        }
+                    }
+                },
+                headlineContent = { Text(text = menuItem.title, maxLines = 2) },
+                supportingContent = {
+                    if (menuItem.description != null) {
+                        Text(
+                            text = menuItem.description,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            modifier = Modifier.alpha(0.8f),
+                        )
+                    }
+                },
+            )
+        }
+    }
+}
+
 @Composable
 fun MyTvMenu(
+    groups: List<MyTvMenuItem>,
+    itemsProvider: (String) -> List<MyTvMenuItem>,
+    currentGroupProvider: () -> MyTvMenuItem,
+    currentItemProvider: () -> MyTvMenuItem,
+    onGroupSelected: (MyTvMenuItem) -> Unit,
+    onItemSelected: (MyTvMenuItem) -> Unit,
+    modifier: Modifier = Modifier,
+    onUserAction: () -> Unit = {}
+) {
+    var focusedGroup by remember { mutableStateOf(currentGroupProvider()) }
+    var focusedItem by remember { mutableStateOf(currentItemProvider()) }
+    var currentItems by remember { mutableStateOf(itemsProvider(focusedGroup.title)) }
+
+    val rightListFocusRequester = remember { FocusRequester() }
+
+    Row(modifier = modifier) {
+        MyTvMenuItemList(
+            onUserAction = onUserAction,
+            menuItemsProvider = { groups },
+            selectedItemProvider = { focusedGroup },
+            onFocused = { menuGroupItem ->
+                focusedGroup = menuGroupItem
+                currentItems = itemsProvider(menuGroupItem.title)
+            },
+            onSelected = { menuGroupItem ->
+                focusedGroup = menuGroupItem
+                currentItems = itemsProvider(menuGroupItem.title)
+                focusedItem = currentItems.firstOrNull { it.title == focusedItem.title } ?: currentItems.firstOrNull() ?: MyTvMenuItem()
+                onGroupSelected(menuGroupItem)
+                rightListFocusRequester.requestFocus()
+            }
+        )
+        MyTvMenuItemList(
+            focusRequester = rightListFocusRequester,
+            menuItemsProvider = { currentItems },
+            selectedItemProvider = { focusedItem },
+            onUserAction = onUserAction,
+            onFocused = { menuItem ->
+                focusedItem = menuItem
+            },
+            onSelected = { menuItem ->
+                focusedItem = menuItem
+                onItemSelected(menuItem)
+            }
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        rightListFocusRequester.requestFocus()
+    }
+}
+
+@Composable
+fun MyTvMenuItemList(
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester = remember { FocusRequester() },
+    menuItemsProvider: () -> List<MyTvMenuItem> = { emptyList() },
+    selectedItemProvider: () -> MyTvMenuItem = { MyTvMenuItem() },
+    onUserAction: () -> Unit = {},
+    onFocused: (MyTvMenuItem) -> Unit = {},
+    onSelected: (MyTvMenuItem) -> Unit = {},
+    onFavoriteToggle: (MyTvMenuItem) -> Unit = {}
+) {
+    val menuItems = menuItemsProvider()
+    val selectedItem = selectedItemProvider()
+    val itemFocusRequesterList = remember(menuItems) {
+        List(menuItems.size) { FocusRequester() }
+    }
+    var focusedMenuItem by remember { mutableStateOf(selectedItem) }
+    val selectedIndex = remember(selectedItem, menuItems) {
+        menuItems.indexOf(selectedItem).takeIf { it != -1 } ?: 0
+    }
+    val listState = rememberTvLazyListState(
+        initialFirstVisibleItemIndex = maxOf(0, selectedIndex - 2)
+    )
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { _ -> onUserAction() }
+    }
+
+    LaunchedEffect(selectedItem, menuItems) {
+        val index = menuItems.indexOf(selectedItem)
+        if (index != -1) {
+            listState.scrollToItem(maxOf(0, index - 2))
+            itemFocusRequesterList[index].requestFocus()
+        }
+    }
+
+    TvLazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+            .fillMaxHeight()
+            .width(250.dp)
+            .background(MaterialTheme.colorScheme.background.copy(0.8f))
+            .focusRequester(focusRequester),
+    ) {
+        itemsIndexed(menuItems, key = { _, item -> item.hashCode() }) { index, item ->
+            val isSelected by remember { derivedStateOf { item == selectedItem } }
+            MyTvMenuItem(
+                menuItemProvider = { item },
+                focusRequesterProvider = { itemFocusRequesterList[index] },
+                isSelectedProvider = { isSelected },
+                isFocusedProvider = { item == focusedMenuItem },
+                onSelected = { onSelected(item) },
+                onFocused = {
+                    focusedMenuItem = it
+                    onFocused(it)
+                },
+                onFavoriteToggle = { onFavoriteToggle(item) }
+            )
+        }
+    }
+}
+
+@Composable
+fun MyTvMenuWidget(
     modifier: Modifier = Modifier,
     groupListProvider: () -> TVGroupList = { TVGroupList() },
     epgListProvider: () -> EpgList = { EpgList() },
     channelProvider: () -> TVChannel = { TVChannel() },
     onSelected: (TVChannel) -> Unit = {},
-    onUserAction: () -> Unit = {},
-    onClose: () -> Unit = {},
+    onUserAction: () -> Unit = {}
 ) {
     val groupList = groupListProvider()
     val currentChannel = channelProvider()
-    var focusedIptvGroup by remember {
-        mutableStateOf(
-            groupList[max(0, groupList.findGroupIndex(currentChannel))]
-        )
-    }
-    val focusedIptvFocusRequester by remember { mutableStateOf(FocusRequester.Default) }
-    var isSettingsVisible by remember { mutableStateOf(false) }
-    var selectedCategoryProvider by remember { mutableStateOf(MyTvSettingsCategories.entries.first()) }
-    val favoriteChannels by remember { mutableStateOf(Settings.iptvChannelFavoriteList) }
-    val favoriteGroup = TVGroup(
-        title = "我的收藏",
-        channels = TVChannelList(groupList.channels.filter { favoriteChannels.contains(it.name) })
-    )
+    val epgList = epgListProvider()
 
-    val settingsGroup = TVGroup(
-        title = "设置",
-        channels = TVChannelList(
-            MyTvSettingsCategories.entries.map {
-                TVChannel(title = it.title, icon = it.icon)
-            }
-        )
-    )
-
-    Row(modifier = modifier) {
-        if (!isSettingsVisible) {
-            MyTvGroupList(
-                groupListProvider = { TVGroupList(listOf(favoriteGroup) + groupList + listOf(settingsGroup)) },
-                focusedGroupProvider = { focusedIptvGroup },
-                onGroupFocused = { focusedIptvGroup = it },
-                exitFocusRequesterProvider = { focusedIptvFocusRequester },
-                onUserAction = onUserAction,
-            )
-        }
-        MyTvChannelList(
-            modifier = Modifier
-                .handleLeanbackKeyEvents(
-                    onLeft = {
-                        if (isSettingsVisible) {
-                            isSettingsVisible = false
-                        }
-                    },
-                )
-                .focusProperties {
-                    exit = {
-                        if (isSettingsVisible && it == FocusDirection.Left) {
-                            isSettingsVisible = false
-                            FocusRequester.Cancel
-                        } else {
-                            FocusRequester.Default
-                        }
-                    }
-                },
-            epgListProvider = epgListProvider,
-            channelsProvider = { focusedIptvGroup.channels },
-            focusedProvider = channelProvider,
-            onUserAction = onUserAction,
-            onSelected = {
-                if (focusedIptvGroup.title != settingsGroup.title) {
-                    onSelected(it)
-                }
-            },
-            onFocused = {
-                if (focusedIptvGroup.title == settingsGroup.title) {
-                    isSettingsVisible = true
-                    when(it.title) {
-                        MyTvSettingsCategories.APP.title -> selectedCategoryProvider = MyTvSettingsCategories.APP
-                        MyTvSettingsCategories.IPTV.title -> selectedCategoryProvider = MyTvSettingsCategories.IPTV
-                        MyTvSettingsCategories.EPG.title -> selectedCategoryProvider = MyTvSettingsCategories.EPG
-                        MyTvSettingsCategories.ABOUT.title -> selectedCategoryProvider = MyTvSettingsCategories.ABOUT
-                    }
-                }
-            },
-            onFavoriteToggle = {
-                if (favoriteChannels.contains(it.name)) {
-                    Settings.iptvChannelFavoriteList -= it.name
-                    LeanbackToastState.I.showToast("取消收藏: ${it.title}")
-                } else {
-                    Settings.iptvChannelFavoriteList += it.name
-                    LeanbackToastState.I.showToast("收藏: ${it.title}")
-                }
-            }
-        )
-        if (isSettingsVisible) {
-            LeanbackSettingsCategoryContent(
-                focusedCategoryProvider = {selectedCategoryProvider}
-            )
+    val groups = remember(groupList) {
+        groupList.map { group ->
+            MyTvMenuItem(title = group.title)
         }
     }
+
+    val currentGroup = remember(groupList, currentChannel) {
+        groups.firstOrNull { it.title == groupList[groupList.findGroupIndex(currentChannel)].title }
+            ?: MyTvMenuItem()
+    }
+
+    val currentMenuItem = remember(currentChannel) {
+        MyTvMenuItem(
+            icon = currentChannel.logo,
+            title = currentChannel.title,
+            description = epgList.currentProgrammes(currentChannel)?.now?.title ?: currentChannel.name
+        )
+    }
+
+    val itemsProvider: (String) -> List<MyTvMenuItem> = { groupTitle ->
+        groupList.find { it.title == groupTitle }?.channels?.map { channel ->
+            MyTvMenuItem(
+                icon = channel.logo ?: "",
+                title = channel.title,
+                description = epgList.currentProgrammes(channel)?.now?.title ?: channel.name
+            )
+        } ?: emptyList()
+    }
+
+    MyTvMenu(
+        groups = groups,
+        itemsProvider = itemsProvider,
+        currentGroupProvider = { currentGroup },
+        currentItemProvider = { currentMenuItem },
+        onGroupSelected = { /* 可以在这里添加组被选中时的逻辑 */ },
+        onItemSelected = { selectedItem ->
+            val selectedChannel = groupList.channels.first { it.title == selectedItem.title }
+            onSelected(selectedChannel)
+        },
+        modifier = modifier,
+        onUserAction = onUserAction
+    )
 }
 
-@Preview(device = "id:Android TV (720p)")
+
+@Preview
 @Composable
-private fun MyTvMenuPreview() {
+private fun MyTvMenuItemComponentPreview() {
     LeanbackTheme {
-        MyTvMenu(
-            groupListProvider = { TVGroupList.EXAMPLE },
-            epgListProvider = {
-                EpgList(TVGroupList.EXAMPLE.channels.map {
-                    EpgChannel(
-                        id = it.name,
-                        programmes = List(5) { idx ->
-                            EpgProgramme(
-                                startAt = System.currentTimeMillis() + idx * 60 * 60 * 1000L,
-                                endAt = System.currentTimeMillis() + (idx + 1) * 60 * 60 * 1000L,
-                                title = "${it.title}节目${idx + 1}",
-                            )
-                        }
-                    )
-                })
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            MyTvMenuItem(
+                menuItemProvider = { MyTvMenuItem(title = "Channel 1", description = "Current Program 1") },
+            )
+
+            MyTvMenuItem(
+                isFocusedProvider = { true },
+                menuItemProvider = { MyTvMenuItem(title = "Channel 2", description = "Current Program 2") },
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun MyTvMenuItemListPreview() {
+    LeanbackTheme {
+        MyTvMenuItemList(
+            modifier = Modifier.padding(20.dp),
+            menuItemsProvider = {
+                listOf(
+                    MyTvMenuItem(title = "Channel 1", description = "Current Program 1"),
+                    MyTvMenuItem(title = "Channel 2", description = "Current Program 2"),
+                    MyTvMenuItem(title = "Channel 3", description = "Current Program 3")
+                )
             },
         )
     }
 }
-

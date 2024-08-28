@@ -31,8 +31,6 @@ data class TVSource(
  */
 @Immutable
 data class TVChannel(
-    val no: String = "",
-    val icon: ImageVector? = null,
     /**
      * 直播源名称
      */
@@ -79,6 +77,6 @@ data class TVChannelList(
     val value: List<TVChannel> = emptyList(),
 ) : List<TVChannel> by value {
     companion object {
-        val EXAMPLE = TVChannelList(List(10) { i -> TVChannel.EXAMPLE.copy() })
+        val EXAMPLE = TVChannelList(List(10) { _ -> TVChannel.EXAMPLE.copy() })
     }
 }
