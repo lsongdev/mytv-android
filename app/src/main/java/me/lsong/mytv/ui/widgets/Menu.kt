@@ -1,5 +1,4 @@
 package me.lsong.mytv.ui.widgets
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,17 +6,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,14 +37,13 @@ import androidx.tv.foundation.lazy.list.itemsIndexed
 import androidx.tv.foundation.lazy.list.rememberTvLazyListState
 import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItemDefaults
+import androidx.tv.material3.LocalContentColor
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.distinctUntilChanged
-import me.lsong.mytv.epg.EpgList
-import me.lsong.mytv.epg.EpgList.Companion.currentProgrammes
-import me.lsong.mytv.iptv.TVChannel
-import me.lsong.mytv.iptv.TVGroupList
-import me.lsong.mytv.iptv.TVGroupList.Companion.channels
-import me.lsong.mytv.iptv.TVGroupList.Companion.findGroupIndex
+import me.lsong.mytv.ui.settings.MyTvSettingsCategories
+import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryContent
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 
@@ -59,18 +56,19 @@ data class MyTvMenuItem(
 @Composable
 fun MyTvMenuItem(
     modifier: Modifier = Modifier,
-    menuItemProvider: () -> MyTvMenuItem = { MyTvMenuItem(title = "") },
-    focusRequesterProvider: () -> FocusRequester = { FocusRequester() },
-    isSelectedProvider: () -> Boolean = { false },
-    isFocusedProvider: () -> Boolean = { false },
+    item: MyTvMenuItem,
+    isFocused: Boolean = false,
+    isSelected: Boolean = false,
+    onFocused: () -> Unit = {},
     onSelected: () -> Unit = {},
-    onFocused: (MyTvMenuItem) -> Unit = {},
-    onFavoriteToggle: () -> Unit = {}
+    onFavoriteToggle: () -> Unit = {},
+    focusRequester: FocusRequester = remember { FocusRequester() },
 ) {
-    val menuItem = menuItemProvider()
-    val focusRequester = focusRequesterProvider()
-    var isFocused by remember { mutableStateOf(isFocusedProvider()) }
-
+    LaunchedEffect(isSelected) {
+        if (isSelected) {
+            focusRequester.requestFocus()
+        }
+    }
     CompositionLocalProvider(
         LocalContentColor provides if (isFocused) MaterialTheme.colorScheme.background
         else MaterialTheme.colorScheme.onBackground
@@ -80,36 +78,27 @@ fun MyTvMenuItem(
         ) {
             androidx.tv.material3.ListItem(
                 modifier = modifier
+                    .align(Alignment.Center)
                     .focusRequester(focusRequester)
-                    .onFocusChanged {
-                        isFocused = it.isFocused || it.hasFocus
-                        if (isFocused) {
-                            onFocused(menuItem)
-                        }
-                    }
+                    .onFocusChanged { if (it.isFocused) onFocused() }
                     .handleLeanbackKeyEvents(
-                        key = menuItem.hashCode(),
-                        onSelect = {
-                            if (isFocused) onSelected()
-                            else focusRequester.requestFocus()
-                        },
-                        onLongSelect = {
-                            if (isFocused) onFavoriteToggle()
-                            else focusRequester.requestFocus()
-                        },
+                        key = item.hashCode(),
+                        onSelect = onSelected,
+                        onLongSelect = onFavoriteToggle,
                     ),
                 colors = ListItemDefaults.colors(
+                    focusedContentColor = MaterialTheme.colorScheme.background,
                     focusedContainerColor = MaterialTheme.colorScheme.onBackground,
                     selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 ),
-                onClick = { onSelected() },
-                selected = isSelectedProvider(),
-                leadingContent = menuItem.icon?.let { icon ->
+                onClick = onSelected,
+                selected = isSelected,
+                leadingContent = item.icon?.let { icon ->
                     {
                         when (icon) {
                             is ImageVector -> Icon(
                                 imageVector = icon,
-                                contentDescription = menuItem.title,
+                                contentDescription = item.title,
                                 modifier = Modifier.size(24.dp)
                             )
                             is String -> if (icon.isEmpty()) {
@@ -119,25 +108,26 @@ fun MyTvMenuItem(
                                         .background(color = MaterialTheme.colorScheme.primary)
                                         .wrapContentHeight(align = Alignment.CenterVertically),
                                     textAlign = TextAlign.Center,
-                                    text = menuItem.title.take(2).uppercase(),
+                                    text = item.title.take(2).uppercase(),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onPrimary,
                                 )
                             } else {
                                 AsyncImage(
-                                    model = menuItem.icon,
-                                    contentDescription = menuItem.title,
+                                    model = icon,
+                                    contentDescription = item.title,
                                     modifier = Modifier.size(40.dp)
                                 )
                             }
+                            else -> null
                         }
                     }
                 },
-                headlineContent = { Text(text = menuItem.title, maxLines = 2) },
-                supportingContent = {
-                    if (menuItem.description != null) {
+                headlineContent = { Text(text = item.title, maxLines = 2) },
+                supportingContent = item.description?.let {
+                    {
                         Text(
-                            text = menuItem.description,
+                            text = it,
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
                             modifier = Modifier.alpha(0.8f),
@@ -153,49 +143,48 @@ fun MyTvMenuItem(
 fun MyTvMenu(
     groups: List<MyTvMenuItem>,
     itemsProvider: (String) -> List<MyTvMenuItem>,
-    currentGroupProvider: () -> MyTvMenuItem,
-    currentItemProvider: () -> MyTvMenuItem,
-    onGroupSelected: (MyTvMenuItem) -> Unit,
-    onItemSelected: (MyTvMenuItem) -> Unit,
+    currentGroup: MyTvMenuItem,
+    currentItem: MyTvMenuItem,
+    onGroupFocused: (MyTvMenuItem) -> Unit = {},
+    onGroupSelected: (MyTvMenuItem) -> Unit = {},
+    onItemSelected: (MyTvMenuItem) -> Unit = {},
     modifier: Modifier = Modifier,
-    onUserAction: () -> Unit = {}
+    onUserAction: () -> Unit = {},
 ) {
-    var focusedGroup by remember { mutableStateOf(currentGroupProvider()) }
-    var focusedItem by remember { mutableStateOf(currentItemProvider()) }
-    var currentItems by remember { mutableStateOf(itemsProvider(focusedGroup.title)) }
-
+    var focusedGroup by remember { mutableStateOf(currentGroup) }
+    var focusedItem by remember { mutableStateOf(currentItem) }
+    var items by remember { mutableStateOf(itemsProvider(focusedGroup.title)) }
     val rightListFocusRequester = remember { FocusRequester() }
 
     Row(modifier = modifier) {
         MyTvMenuItemList(
-            onUserAction = onUserAction,
-            menuItemsProvider = { groups },
-            selectedItemProvider = { focusedGroup },
+            items = groups,
+            selectedItem = focusedGroup,
             onFocused = { menuGroupItem ->
                 focusedGroup = menuGroupItem
-                currentItems = itemsProvider(menuGroupItem.title)
+                items = itemsProvider(menuGroupItem.title)
+                onGroupFocused(focusedGroup)
             },
             onSelected = { menuGroupItem ->
                 focusedGroup = menuGroupItem
-                currentItems = itemsProvider(menuGroupItem.title)
-                focusedItem = currentItems.firstOrNull { it.title == focusedItem.title } ?: currentItems.firstOrNull() ?: MyTvMenuItem()
-                onGroupSelected(menuGroupItem)
+                items = itemsProvider(menuGroupItem.title)
+                focusedItem = items.firstOrNull() ?: MyTvMenuItem()
+                onGroupSelected(focusedGroup)
                 rightListFocusRequester.requestFocus()
-            }
+            },
+            onUserAction = onUserAction
         )
         MyTvMenuItemList(
-            focusRequester = rightListFocusRequester,
-            menuItemsProvider = { currentItems },
-            selectedItemProvider = { focusedItem },
-            onUserAction = onUserAction,
-            onFocused = { menuItem ->
-                focusedItem = menuItem
-            },
+            items = items,
+            selectedItem = focusedItem,
             onSelected = { menuItem ->
                 focusedItem = menuItem
-                onItemSelected(menuItem)
-            }
+                onItemSelected(focusedItem)
+            },
+            onUserAction = onUserAction,
+            focusRequester = rightListFocusRequester
         )
+
     }
 
     LaunchedEffect(Unit) {
@@ -205,40 +194,29 @@ fun MyTvMenu(
 
 @Composable
 fun MyTvMenuItemList(
-    modifier: Modifier = Modifier,
-    focusRequester: FocusRequester = remember { FocusRequester() },
-    menuItemsProvider: () -> List<MyTvMenuItem> = { emptyList() },
-    selectedItemProvider: () -> MyTvMenuItem = { MyTvMenuItem() },
+    items: List<MyTvMenuItem>,
+    selectedItem: MyTvMenuItem = items.firstOrNull() ?: MyTvMenuItem(),
     onUserAction: () -> Unit = {},
     onFocused: (MyTvMenuItem) -> Unit = {},
     onSelected: (MyTvMenuItem) -> Unit = {},
-    onFavoriteToggle: (MyTvMenuItem) -> Unit = {}
+    onFavoriteToggle: (MyTvMenuItem) -> Unit = {},
+    focusRequester: FocusRequester = remember { FocusRequester() },
+    modifier: Modifier = Modifier
 ) {
-    val menuItems = menuItemsProvider()
-    val selectedItem = selectedItemProvider()
-    val itemFocusRequesterList = remember(menuItems) {
-        List(menuItems.size) { FocusRequester() }
-    }
-    var focusedMenuItem by remember { mutableStateOf(selectedItem) }
-    val selectedIndex = remember(selectedItem, menuItems) {
-        menuItems.indexOf(selectedItem).takeIf { it != -1 } ?: 0
-    }
-    val listState = rememberTvLazyListState(
-        initialFirstVisibleItemIndex = maxOf(0, selectedIndex - 2)
-    )
+    var focusedItem by remember { mutableStateOf(selectedItem) }
+    val selectedIndex = remember(selectedItem, items) { items.indexOf(selectedItem) }
+    val itemFocusRequesterList = remember(items) { List(items.size) { FocusRequester() } }
+    val listState = rememberTvLazyListState()
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }
             .distinctUntilChanged()
-            .collect { _ -> onUserAction() }
+            .collect { onUserAction() }
     }
 
-    LaunchedEffect(selectedItem, menuItems) {
-        val index = menuItems.indexOf(selectedItem)
-        if (index != -1) {
-            listState.scrollToItem(maxOf(0, index - 2))
-            itemFocusRequesterList[index].requestFocus()
-        }
+    LaunchedEffect(selectedItem, items) {
+        val index = items.indexOf(selectedItem)
+        listState.scrollToItem(maxOf(0, index))
     }
 
     TvLazyColumn(
@@ -251,39 +229,18 @@ fun MyTvMenuItemList(
             .background(MaterialTheme.colorScheme.background.copy(0.8f))
             .focusRequester(focusRequester),
     ) {
-        itemsIndexed(menuItems, key = { _, item -> item.hashCode() }) { index, item ->
-            val isSelected by remember { derivedStateOf { item == selectedItem } }
+        itemsIndexed(items, key = { _, item -> item.hashCode() }) { index, item ->
             MyTvMenuItem(
-                menuItemProvider = { item },
-                focusRequesterProvider = { itemFocusRequesterList[index] },
-                isSelectedProvider = { isSelected },
-                isFocusedProvider = { item == focusedMenuItem },
+                item = item,
+                focusRequester = itemFocusRequesterList[index],
+                isSelected = selectedIndex == index,
+                isFocused = selectedIndex == index,
                 onSelected = { onSelected(item) },
                 onFocused = {
-                    focusedMenuItem = it
-                    onFocused(it)
+                    focusedItem = item
+                    onFocused(item)
                 },
                 onFavoriteToggle = { onFavoriteToggle(item) }
-            )
-        }
-    }
-}
-
-@Preview
-@Composable
-private fun MyTvMenuItemComponentPreview() {
-    LeanbackTheme {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            MyTvMenuItem(
-                menuItemProvider = { MyTvMenuItem(title = "Channel 1", description = "Current Program 1") },
-            )
-
-            MyTvMenuItem(
-                isFocusedProvider = { true },
-                menuItemProvider = { MyTvMenuItem(title = "Channel 2", description = "Current Program 2") },
             )
         }
     }
@@ -295,13 +252,11 @@ private fun MyTvMenuItemListPreview() {
     LeanbackTheme {
         MyTvMenuItemList(
             modifier = Modifier.padding(20.dp),
-            menuItemsProvider = {
-                listOf(
-                    MyTvMenuItem(title = "Channel 1", description = "Current Program 1"),
-                    MyTvMenuItem(title = "Channel 2", description = "Current Program 2"),
-                    MyTvMenuItem(title = "Channel 3", description = "Current Program 3")
-                )
-            },
+            items = listOf(
+                MyTvMenuItem(title = "Channel 1", description = "Current Program 1"),
+                MyTvMenuItem(title = "Channel 2", description = "Current Program 2"),
+                MyTvMenuItem(title = "Channel 3", description = "Current Program 3")
+            )
         )
     }
 }

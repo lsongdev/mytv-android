@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,7 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -39,43 +44,41 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import me.lsong.mytv.R
-import me.lsong.mytv.epg.EpgChannel
 import me.lsong.mytv.epg.EpgList
 import me.lsong.mytv.epg.EpgList.Companion.currentProgrammes
 import me.lsong.mytv.epg.EpgRepository
-import me.lsong.mytv.iptv.IptvRepository
+import me.lsong.mytv.iptv.IPTVProvider
 import me.lsong.mytv.iptv.TVChannel
-import me.lsong.mytv.iptv.TVChannelList
-import me.lsong.mytv.iptv.TVGroup
 import me.lsong.mytv.iptv.TVGroupList
 import me.lsong.mytv.iptv.TVGroupList.Companion.channels
 import me.lsong.mytv.iptv.TVGroupList.Companion.findGroupIndex
-import me.lsong.mytv.iptv.TVSource
+import me.lsong.mytv.iptv.TVProvider
 import me.lsong.mytv.ui.components.LeanbackMonitorScreen
 import me.lsong.mytv.ui.components.LeanbackVisible
 import me.lsong.mytv.ui.player.MyTvVideoScreen
 import me.lsong.mytv.ui.player.rememberLeanbackVideoPlayerState
+import me.lsong.mytv.ui.settings.MyTvSettingsCategories
 import me.lsong.mytv.ui.settings.MyTvSettingsViewModel
+import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryContent
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.ui.widgets.MyTvMenu
 import me.lsong.mytv.ui.widgets.MyTvMenuItem
 import me.lsong.mytv.ui.widgets.MyTvNowPlaying
 import me.lsong.mytv.utils.Constants
-import me.lsong.mytv.utils.Settings
 import me.lsong.mytv.utils.handleLeanbackDragGestures
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
+
 
 @Composable
 fun MyTvMenuWidget(
     modifier: Modifier = Modifier,
-    groupListProvider: () -> TVGroupList = { TVGroupList() },
     epgListProvider: () -> EpgList = { EpgList() },
     channelProvider: () -> TVChannel = { TVChannel() },
+    groupListProvider: () -> TVGroupList = { TVGroupList() },
     onSelected: (TVChannel) -> Unit = {},
+    onSettings: () -> Unit = {},
     onUserAction: () -> Unit = {}
 ) {
     val groupList = groupListProvider()
@@ -88,16 +91,16 @@ fun MyTvMenuWidget(
         }
     }
 
-    val currentGroup = remember(groupList, currentChannel) {
+    var currentGroup = remember(groupList, currentChannel) {
         groups.firstOrNull { it.title == groupList[groupList.findGroupIndex(currentChannel)].title }
             ?: MyTvMenuItem()
     }
 
     val currentMenuItem = remember(currentChannel) {
         MyTvMenuItem(
-            icon = currentChannel.logo,
+            icon = currentChannel.logo ?: "",
             title = currentChannel.title,
-            description = epgList.currentProgrammes(currentChannel)?.now?.title ?: currentChannel.name
+            description = epgList.currentProgrammes(currentChannel)?.now?.title
         )
     }
 
@@ -106,24 +109,25 @@ fun MyTvMenuWidget(
             MyTvMenuItem(
                 icon = channel.logo ?: "",
                 title = channel.title,
-                description = epgList.currentProgrammes(channel)?.now?.title ?: channel.name
+                description = epgList.currentProgrammes(channel)?.now?.title
             )
         } ?: emptyList()
     }
 
-    MyTvMenu(
-        groups = groups,
-        itemsProvider = itemsProvider,
-        currentGroupProvider = { currentGroup },
-        currentItemProvider = { currentMenuItem },
-        onGroupSelected = { /* 可以在这里添加组被选中时的逻辑 */ },
-        onItemSelected = { selectedItem ->
-            val selectedChannel = groupList.channels.first { it.title == selectedItem.title }
-            onSelected(selectedChannel)
-        },
-        modifier = modifier,
-        onUserAction = onUserAction
-    )
+    Row {
+        MyTvMenu(
+            groups = groups,
+            itemsProvider = itemsProvider,
+            currentGroup = currentGroup,
+            currentItem = currentMenuItem,
+            onItemSelected = { selectedItem ->
+                val selectedChannel = groupList.channels.first { it.title == selectedItem.title }
+                onSelected(selectedChannel)
+            },
+            modifier = modifier,
+            onUserAction = onUserAction
+        )
+    }
 }
 
 @Composable
@@ -144,7 +148,7 @@ fun MainScreen(
             is LeanbackMainUiState.Error -> StartScreen(state)
             is LeanbackMainUiState.Ready -> MainContent(
                 modifier = modifier,
-                groupList = state.tvGroupList,
+                groups = state.groups,
                 epgList = state.epgList,
                 onBackPressed = onBackPressed,
                 settingsViewModel = settingsViewModel
@@ -206,18 +210,27 @@ private fun StartScreen(state: LeanbackMainUiState) {
     }
 }
 
+sealed interface LeanbackMainUiState {
+    data class Loading(val message: String? = null) : LeanbackMainUiState
+    data class Error(val message: String? = null) : LeanbackMainUiState
+    data class Ready(
+        val groups: TVGroupList = TVGroupList(),
+        val epgList: EpgList = EpgList(),
+    ) : LeanbackMainUiState
+}
+
 @Composable
 fun MainContent(
     modifier: Modifier = Modifier,
     onBackPressed: () -> Unit = {},
     epgList: EpgList = EpgList(),
-    groupList: TVGroupList = TVGroupList(),
+    groups: TVGroupList = TVGroupList(),
     settingsViewModel: MyTvSettingsViewModel = viewModel(),
 ) {
     val videoPlayerState = rememberLeanbackVideoPlayerState()
     val mainContentState = rememberMainContentState(
         videoPlayerState = videoPlayerState,
-        tvGroupList = groupList,
+        groups = groups,
     )
 
     val focusRequester = remember { FocusRequester() }
@@ -292,7 +305,7 @@ fun MainContent(
         LeanbackVisible({ mainContentState.isMenuVisible && !mainContentState.isChannelInfoVisible }) {
             MyTvMenuWidget(
                 epgListProvider = { epgList },
-                groupListProvider = { groupList },
+                groupListProvider = { groups },
                 channelProvider = { mainContentState.currentChannel },
                 onSelected = { channel -> mainContentState.changeCurrentChannel(channel) }
             )
@@ -336,10 +349,11 @@ fun LeanbackBackPressHandledArea(
     content = content,
 )
 
+// MainViewModel.kt
 class MainViewModel : ViewModel() {
-    private val iptvRepository = IptvRepository()
-    private val epgRepository = EpgRepository()
-
+    private val providers: List<TVProvider> = listOf(
+        IPTVProvider(EpgRepository())
+    )
     private val _uiState = MutableStateFlow<LeanbackMainUiState>(LeanbackMainUiState.Loading())
     val uiState: StateFlow<LeanbackMainUiState> = _uiState.asStateFlow()
 
@@ -350,94 +364,24 @@ class MainViewModel : ViewModel() {
     }
 
     private suspend fun refreshData() {
-        var epgUrls = emptyArray<String>()
-        var iptvUrls = emptyArray<String>()
-        if (Settings.iptvSourceUrls.isNotEmpty()) {
-            iptvUrls += Settings.iptvSourceUrls
-        }
-        if (iptvUrls.isEmpty()) {
-            iptvUrls += Constants.IPTV_SOURCE_URL
-        }
-        flow {
-            val allSources = mutableListOf<TVSource>()
-            iptvUrls.forEachIndexed { index, url ->
-                emit(LoadingState(index + 1, iptvUrls.size, url, "IPTV"))
-                val m3u = fetchDataWithRetry { iptvRepository.getChannelSourceList(sourceUrl = url) }
-                allSources.addAll(m3u.sources)
-                if (m3u.epgUrl != null)
-                    epgUrls += (m3u.epgUrl).toString()
+        try {
+            _uiState.value = LeanbackMainUiState.Loading("Initializing providers...")
+            providers.forEachIndexed { index, provider ->
+                _uiState.value = LeanbackMainUiState.Loading("Initializing provider ${index + 1}/${providers.size}...")
+                provider.load()
             }
-            if (epgUrls.isEmpty()) {
-                epgUrls += Constants.EPG_XML_URL
-            }
-            val epgChannels = mutableListOf<EpgChannel>()
-            epgUrls.distinct().toTypedArray().forEachIndexed { index, url ->
-                emit(LoadingState(index + 1, epgUrls.size, url, "EPG"))
-                val epg = fetchDataWithRetry { epgRepository.getEpgList(url) }
-                epgChannels.addAll(epg.value)
-            }
-            val groupList = processChannelSources(allSources)
-            emit(DataResult(groupList, EpgList(epgChannels.distinctBy{ it.id })))
-        }
-            .catch { error ->
-                _uiState.value = LeanbackMainUiState.Error(error.message)
-                Settings.iptvSourceUrlHistoryList -= iptvUrls.toList()
-            }
-            .collect { result ->
-                when (result) {
-                    is LoadingState -> {
-                        _uiState.value =
-                            LeanbackMainUiState.Loading("获取${result.type}数据(${result.currentSource}/${result.totalSources})...")
-                    }
-                    is DataResult -> {
-                        Log.d("epg","合并节目单完成：${result.epgList.size}")
-                        _uiState.value = LeanbackMainUiState.Ready(
-                            tvGroupList = result.groupList,
-                            epgList = result.epgList
-                        )
-                        Settings.iptvSourceUrlHistoryList += iptvUrls.toList()
-                    }
-                }
-            }
-    }
 
-    private suspend fun <T> fetchDataWithRetry(fetch: suspend () -> T): T {
-        var attempt = 0
-        while (attempt < Constants.HTTP_RETRY_COUNT) {
-            try {
-                return fetch()
-            } catch (e: Exception) {
-                attempt++
-                if (attempt >= Constants.HTTP_RETRY_COUNT) throw e
-                delay(Constants.HTTP_RETRY_INTERVAL)
-            }
+            val groupList = providers.flatMap { it.groups() }
+            val epgList = providers.map { it.epg() }.reduce { acc, epgList -> (acc + epgList) as EpgList }
+
+            _uiState.value = LeanbackMainUiState.Ready(
+                groups = TVGroupList(groupList),
+                epgList = epgList
+            )
+        } catch (error: Exception) {
+            _uiState.value = LeanbackMainUiState.Error(error.message)
         }
-        throw IllegalStateException("Failed to fetch data after $attempt attempts")
     }
-
-    private fun processChannelSources(sources: List<TVSource>): TVGroupList {
-        val sourceList = TVChannelList(sources.groupBy { it.name }.map { channelEntry ->
-            TVChannel(
-                name = channelEntry.key,
-                title = channelEntry.value.first().title,
-                sources = channelEntry.value)
-        })
-        val groupList = TVGroupList(sourceList.groupBy { it.groupTitle ?: "其他" }.map { groupEntry ->
-            TVGroup(title = groupEntry.key, channels = TVChannelList(groupEntry.value))
-        })
-        return groupList
-    }
-    private data class LoadingState(val currentSource: Int, val totalSources: Int, val currentUrl: String, val type: String)
-    private data class DataResult(val groupList: TVGroupList, val epgList: EpgList)
-}
-
-sealed interface LeanbackMainUiState {
-    data class Loading(val message: String? = null) : LeanbackMainUiState
-    data class Error(val message: String? = null) : LeanbackMainUiState
-    data class Ready(
-        val tvGroupList: TVGroupList = TVGroupList(),
-        val epgList: EpgList = EpgList(),
-    ) : LeanbackMainUiState
 }
 
 @Preview(device = "id:pixel_5")

@@ -26,7 +26,7 @@ import kotlin.math.max
 class MainContentState(
     coroutineScope: CoroutineScope,
     private val videoPlayerState: LeanbackVideoPlayerState,
-    private val tvGroupList: TVGroupList,
+    private val groups: TVGroupList,
 )  {
     private var _currentChannel by mutableStateOf(TVChannel())
     val currentChannel get() = _currentChannel
@@ -49,11 +49,11 @@ class MainContentState(
         }
 
     val currentChannelIndex
-        get() = tvGroupList.findChannelIndex(_currentChannel)
+        get() = groups.findChannelIndex(_currentChannel)
 
     init {
-        changeCurrentChannel(tvGroupList.channels.getOrElse(Settings.iptvLastIptvIdx) {
-            tvGroupList.firstOrNull()?.channels?.firstOrNull() ?: TVChannel()
+        changeCurrentChannel(groups.channels.getOrElse(Settings.iptvLastIptvIdx) {
+            groups.firstOrNull()?.channels?.firstOrNull() ?: TVChannel()
         })
 
         videoPlayerState.onReady {
@@ -85,16 +85,16 @@ class MainContentState(
     }
 
     private fun getPrevChannel(): TVChannel {
-        val currentIndex = tvGroupList.findChannelIndex(_currentChannel)
-        return tvGroupList.channels.getOrElse(currentIndex - 1) {
-            tvGroupList.lastOrNull()?.channels?.lastOrNull() ?: TVChannel()
+        val currentIndex = groups.findChannelIndex(_currentChannel)
+        return groups.channels.getOrElse(currentIndex - 1) {
+            groups.lastOrNull()?.channels?.lastOrNull() ?: TVChannel()
         }
     }
 
     private fun getNextChannel(): TVChannel {
-        val currentIndex = tvGroupList.findChannelIndex(_currentChannel)
-        return tvGroupList.channels.getOrElse(currentIndex + 1) {
-            tvGroupList.firstOrNull()?.channels?.firstOrNull() ?: TVChannel()
+        val currentIndex = groups.findChannelIndex(_currentChannel)
+        return groups.channels.getOrElse(currentIndex + 1) {
+            groups.firstOrNull()?.channels?.firstOrNull() ?: TVChannel()
         }
     }
 
@@ -163,12 +163,12 @@ class MainContentState(
 fun rememberMainContentState(
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
     videoPlayerState: LeanbackVideoPlayerState = rememberLeanbackVideoPlayerState(),
-    tvGroupList: TVGroupList = TVGroupList(),
+    groups: TVGroupList = TVGroupList(),
 ) = remember {
     MainContentState(
         coroutineScope = coroutineScope,
         videoPlayerState = videoPlayerState,
-        tvGroupList = tvGroupList,
+        groups = groups,
     )
 }
 

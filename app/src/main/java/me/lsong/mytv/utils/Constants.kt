@@ -1,7 +1,5 @@
 package me.lsong.mytv.utils
 
-import androidx.compose.ui.text.intl.Locale
-
 /**
  * 常量
  */
@@ -37,14 +35,9 @@ object Constants {
     const val EPG_REFRESH_TIME_THRESHOLD = 2 // 不到2点不刷新
 
     /**
-     * GitHub加速代理地址
-     */
-    const val GITHUB_PROXY = "https://mirror.ghproxy.com/"
-
-    /**
      * HTTP请求重试次数
      */
-    const val HTTP_RETRY_COUNT = 10L
+    const val HTTP_RETRY_COUNT = 10
 
     /**
      * HTTP请求重试间隔时间（毫秒）
@@ -57,24 +50,9 @@ object Constants {
     const val VIDEO_PLAYER_USER_AGENT = "ExoPlayer"
 
     /**
-     * 日志历史最大保留条数
-     */
-    const val LOG_HISTORY_MAX_SIZE = 50
-
-    /**
      * 播放器加载超时
      */
     const val VIDEO_PLAYER_LOAD_TIMEOUT = 1000L * 15 // 15秒
-
-    /**
-     * 界面 超时未操作自动关闭界面
-     */
-    const val UI_SCREEN_AUTO_CLOSE_DELAY = 1000L * 15 // 15秒
-
-    /**
-     * 界面 时间显示前后范围
-     */
-    const val UI_TIME_SHOW_RANGE = 1000L * 30 // 前后30秒
 
     /**
      * 界面 临时面板界面显示时间
