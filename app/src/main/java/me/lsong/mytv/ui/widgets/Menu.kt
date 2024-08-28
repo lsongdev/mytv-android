@@ -269,64 +269,6 @@ fun MyTvMenuItemList(
     }
 }
 
-@Composable
-fun MyTvMenuWidget(
-    modifier: Modifier = Modifier,
-    groupListProvider: () -> TVGroupList = { TVGroupList() },
-    epgListProvider: () -> EpgList = { EpgList() },
-    channelProvider: () -> TVChannel = { TVChannel() },
-    onSelected: (TVChannel) -> Unit = {},
-    onUserAction: () -> Unit = {}
-) {
-    val groupList = groupListProvider()
-    val currentChannel = channelProvider()
-    val epgList = epgListProvider()
-
-    val groups = remember(groupList) {
-        groupList.map { group ->
-            MyTvMenuItem(title = group.title)
-        }
-    }
-
-    val currentGroup = remember(groupList, currentChannel) {
-        groups.firstOrNull { it.title == groupList[groupList.findGroupIndex(currentChannel)].title }
-            ?: MyTvMenuItem()
-    }
-
-    val currentMenuItem = remember(currentChannel) {
-        MyTvMenuItem(
-            icon = currentChannel.logo,
-            title = currentChannel.title,
-            description = epgList.currentProgrammes(currentChannel)?.now?.title ?: currentChannel.name
-        )
-    }
-
-    val itemsProvider: (String) -> List<MyTvMenuItem> = { groupTitle ->
-        groupList.find { it.title == groupTitle }?.channels?.map { channel ->
-            MyTvMenuItem(
-                icon = channel.logo ?: "",
-                title = channel.title,
-                description = epgList.currentProgrammes(channel)?.now?.title ?: channel.name
-            )
-        } ?: emptyList()
-    }
-
-    MyTvMenu(
-        groups = groups,
-        itemsProvider = itemsProvider,
-        currentGroupProvider = { currentGroup },
-        currentItemProvider = { currentMenuItem },
-        onGroupSelected = { /* 可以在这里添加组被选中时的逻辑 */ },
-        onItemSelected = { selectedItem ->
-            val selectedChannel = groupList.channels.first { it.title == selectedItem.title }
-            onSelected(selectedChannel)
-        },
-        modifier = modifier,
-        onUserAction = onUserAction
-    )
-}
-
-
 @Preview
 @Composable
 private fun MyTvMenuItemComponentPreview() {

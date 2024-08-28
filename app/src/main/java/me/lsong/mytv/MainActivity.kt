@@ -36,7 +36,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.debounce
-import me.lsong.mytv.ui.LoadingScreen
+import me.lsong.mytv.ui.MainScreen
 import me.lsong.mytv.ui.components.LeanbackPadding
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.ui.toast.LeanbackToastScreen
@@ -117,7 +117,7 @@ fun LeanbackApp(
 ) {
     val doubleBackPressedExitState = rememberLeanbackDoubleBackPressedExitState()
     LeanbackToastScreen()
-    LoadingScreen(
+    MainScreen(
         modifier = modifier,
         onBackPressed = {
             if (doubleBackPressedExitState.allowExit) {
