@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,8 +45,6 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.distinctUntilChanged
-import me.lsong.mytv.ui.settings.MyTvSettingsCategories
-import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryContent
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 
@@ -150,6 +151,7 @@ fun MyTvMenu(
     onItemSelected: (MyTvMenuItem) -> Unit = {},
     modifier: Modifier = Modifier,
     onUserAction: () -> Unit = {},
+    onSettings: () -> Unit = {}
 ) {
     var focusedGroup by remember { mutableStateOf(currentGroup) }
     var focusedItem by remember { mutableStateOf(currentItem) }
@@ -159,6 +161,7 @@ fun MyTvMenu(
     Row(modifier = modifier) {
         MyTvMenuItemList(
             items = groups,
+            onSettings = onSettings,
             selectedItem = focusedGroup,
             onFocused = { menuGroupItem ->
                 focusedGroup = menuGroupItem
@@ -192,6 +195,8 @@ fun MyTvMenu(
     }
 }
 
+
+
 @Composable
 fun MyTvMenuItemList(
     items: List<MyTvMenuItem>,
@@ -201,11 +206,13 @@ fun MyTvMenuItemList(
     onSelected: (MyTvMenuItem) -> Unit = {},
     onFavoriteToggle: (MyTvMenuItem) -> Unit = {},
     focusRequester: FocusRequester = remember { FocusRequester() },
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSettings: () -> Unit = {}
 ) {
     var focusedItem by remember { mutableStateOf(selectedItem) }
     val selectedIndex = remember(selectedItem, items) { items.indexOf(selectedItem) }
     val itemFocusRequesterList = remember(items) { List(items.size) { FocusRequester() } }
+    val settingsFocusRequester = remember { FocusRequester() }
     val listState = rememberTvLazyListState()
 
     LaunchedEffect(listState) {
@@ -219,28 +226,46 @@ fun MyTvMenuItemList(
         listState.scrollToItem(maxOf(0, index))
     }
 
-    TvLazyColumn(
-        state = listState,
-        contentPadding = PaddingValues(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
         modifier = modifier
             .fillMaxHeight()
             .width(250.dp)
             .background(MaterialTheme.colorScheme.background.copy(0.8f))
-            .focusRequester(focusRequester),
+            .focusRequester(focusRequester)
     ) {
-        itemsIndexed(items, key = { _, item -> item.hashCode() }) { index, item ->
+        TvLazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            itemsIndexed(items, key = { _, item -> item.hashCode() }) { index, item ->
+                MyTvMenuItem(
+                    item = item,
+                    focusRequester = itemFocusRequesterList[index],
+                    isSelected = selectedIndex == index,
+                    isFocused = selectedIndex == index,
+                    onSelected = { onSelected(item) },
+                    onFocused = {
+                        focusedItem = item
+                        onFocused(item)
+                    },
+                    onFavoriteToggle = { onFavoriteToggle(item) }
+                )
+            }
+        }
+
+        // Settings button at the bottom
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(8.dp)
+        ) {
             MyTvMenuItem(
-                item = item,
-                focusRequester = itemFocusRequesterList[index],
-                isSelected = selectedIndex == index,
-                isFocused = selectedIndex == index,
-                onSelected = { onSelected(item) },
-                onFocused = {
-                    focusedItem = item
-                    onFocused(item)
-                },
-                onFavoriteToggle = { onFavoriteToggle(item) }
+                item = MyTvMenuItem(icon = Icons.Default.Settings, title = "Settings"),
+                focusRequester = settingsFocusRequester,
+                onSelected = onSettings
             )
         }
     }

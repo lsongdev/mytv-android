@@ -1,6 +1,5 @@
 package me.lsong.mytv.ui
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,8 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,9 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -59,9 +54,7 @@ import me.lsong.mytv.ui.components.LeanbackMonitorScreen
 import me.lsong.mytv.ui.components.LeanbackVisible
 import me.lsong.mytv.ui.player.MyTvVideoScreen
 import me.lsong.mytv.ui.player.rememberLeanbackVideoPlayerState
-import me.lsong.mytv.ui.settings.MyTvSettingsCategories
 import me.lsong.mytv.ui.settings.MyTvSettingsViewModel
-import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryContent
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.ui.widgets.MyTvMenu
 import me.lsong.mytv.ui.widgets.MyTvMenuItem
@@ -69,6 +62,7 @@ import me.lsong.mytv.ui.widgets.MyTvNowPlaying
 import me.lsong.mytv.utils.Constants
 import me.lsong.mytv.utils.handleLeanbackDragGestures
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
+import top.yogiczy.mytv.ui.screens.leanback.settings.MyTvSettingsScreen
 
 
 @Composable
@@ -125,7 +119,8 @@ fun MyTvMenuWidget(
                 onSelected(selectedChannel)
             },
             modifier = modifier,
-            onUserAction = onUserAction
+            onSettings = onSettings,
+            onUserAction = onUserAction,
         )
     }
 }
@@ -237,13 +232,13 @@ fun MainContent(
     LaunchedEffect(Unit) {
         // 防止切换到其他界面时焦点丢失
         // TODO 换一个更好的解决方案
-        while (true) {
-            if (!mainContentState.isChannelInfoVisible && !mainContentState.isMenuVisible
-            ) {
-                focusRequester.requestFocus()
-            }
-            delay(100)
-        }
+        // while (true) {
+        //     if (!mainContentState.isChannelInfoVisible && !mainContentState.isMenuVisible
+        //     ) {
+        //         focusRequester.requestFocus()
+        //     }
+        //     delay(100)
+        // }
     }
 
     LeanbackBackPressHandledArea(
@@ -307,7 +302,8 @@ fun MainContent(
                 epgListProvider = { epgList },
                 groupListProvider = { groups },
                 channelProvider = { mainContentState.currentChannel },
-                onSelected = { channel -> mainContentState.changeCurrentChannel(channel) }
+                onSelected = { channel -> mainContentState.changeCurrentChannel(channel) },
+                onSettings = { mainContentState.showSettings() }
             )
         }
 
@@ -325,6 +321,10 @@ fun MainContent(
 
         LeanbackVisible({ settingsViewModel.debugShowFps }) {
             LeanbackMonitorScreen()
+        }
+
+        LeanbackVisible({ mainContentState.isSettingsVisale }) {
+            MyTvSettingsScreen()
         }
 
     }

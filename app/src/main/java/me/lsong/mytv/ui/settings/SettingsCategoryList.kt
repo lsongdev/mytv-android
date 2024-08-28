@@ -1,8 +1,10 @@
-package me.lsong.mytv.ui.settings.components
+package me.lsong.mytv.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -24,7 +26,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.tv.foundation.lazy.list.TvLazyColumn
 import androidx.tv.foundation.lazy.list.itemsIndexed
-import me.lsong.mytv.ui.settings.MyTvSettingsCategories
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 
@@ -38,9 +39,9 @@ fun MyTvSettingsCategoryList(
     var hasFocused = rememberSaveable { false }
 
     TvLazyColumn(
-        contentPadding = PaddingValues(vertical = 4.dp),
+        contentPadding = PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = modifier.focusRestorer()
+        modifier = modifier.focusRestorer().fillMaxSize()
     ) {
         itemsIndexed(MyTvSettingsCategories.entries) { index, category ->
             val isSelected by remember { derivedStateOf { focusedCategoryProvider() == category } }
@@ -53,7 +54,9 @@ fun MyTvSettingsCategoryList(
             }
 
             LeanbackSettingsCategoryItem(
-                modifier = Modifier.focusRequester(focusRequester),
+                modifier = Modifier
+                    .focusRequester(focusRequester)
+                    .fillMaxWidth(),
                 icon = category.icon,
                 title = category.title,
                 isSelectedProvider = { isSelected },
@@ -81,6 +84,7 @@ private fun LeanbackSettingsCategoryItem(
         leadingContent = { androidx.tv.material3.Icon(icon, title) },
         headlineContent = { androidx.tv.material3.Text(text = title) },
         modifier = modifier
+            .fillMaxWidth()
             .focusRequester(focusRequester)
             .onFocusChanged {
                 isFocused = it.isFocused || it.hasFocus

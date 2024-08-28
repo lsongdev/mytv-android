@@ -1,4 +1,4 @@
-package me.lsong.mytv.ui.settings.components
+package me.lsong.mytv.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -11,7 +11,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import me.lsong.mytv.ui.settings.MyTvSettingsCategories
+import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryAbout
+import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryApp
+import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryEpg
+import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryIptv
 
 @Composable
 fun LeanbackSettingsCategoryContent(

@@ -48,6 +48,13 @@ class MainContentState(
             _isMenuVisible = value
         }
 
+    private var _isSettingsVisale by mutableStateOf(false)
+    var isSettingsVisale
+        get() = _isSettingsVisale
+        set(value) {
+            _isSettingsVisale = value
+        }
+
     val currentChannelIndex
         get() = groups.findChannelIndex(_currentChannel)
 
@@ -155,6 +162,12 @@ class MainContentState(
 
     fun showMenu() {
         isMenuVisible = true
+        isChannelInfoVisible = false
+    }
+
+    fun showSettings() {
+        isMenuVisible = false
+        isSettingsVisale = true
         isChannelInfoVisible = false
     }
 }
