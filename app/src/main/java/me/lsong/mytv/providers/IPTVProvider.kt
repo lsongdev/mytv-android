@@ -1,4 +1,4 @@
-package me.lsong.mytv.iptv
+package me.lsong.mytv.providers
 
 import android.util.Log
 import androidx.compose.runtime.Immutable

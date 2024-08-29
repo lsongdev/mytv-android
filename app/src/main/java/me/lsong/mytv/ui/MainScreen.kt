@@ -7,12 +7,19 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -38,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.tv.foundation.lazy.list.TvLazyColumn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,16 +54,16 @@ import me.lsong.mytv.R
 import me.lsong.mytv.epg.EpgList
 import me.lsong.mytv.epg.EpgList.Companion.currentProgrammes
 import me.lsong.mytv.epg.EpgRepository
-import me.lsong.mytv.iptv.IPTVProvider
-import me.lsong.mytv.iptv.TVChannel
-import me.lsong.mytv.iptv.TVGroupList
-import me.lsong.mytv.iptv.TVGroupList.Companion.channels
-import me.lsong.mytv.iptv.TVGroupList.Companion.findGroupIndex
-import me.lsong.mytv.iptv.TVProvider
+import me.lsong.mytv.providers.IPTVProvider
+import me.lsong.mytv.providers.TVChannel
+import me.lsong.mytv.providers.TVGroupList
+import me.lsong.mytv.providers.TVGroupList.Companion.channels
+import me.lsong.mytv.providers.TVGroupList.Companion.findGroupIndex
+import me.lsong.mytv.providers.TVProvider
 import me.lsong.mytv.ui.components.LeanbackVisible
 import me.lsong.mytv.ui.components.MonitorScreen
-import me.lsong.mytv.ui.components.MyTvMenu
 import me.lsong.mytv.ui.components.MyTvMenuItem
+import me.lsong.mytv.ui.components.MyTvMenuItemList
 import me.lsong.mytv.ui.components.MyTvNowPlaying
 import me.lsong.mytv.ui.player.MyTvVideoScreen
 import me.lsong.mytv.ui.player.rememberLeanbackVideoPlayerState
@@ -143,7 +151,7 @@ fun MyTvMenuWidget(
     channelProvider: () -> TVChannel = { TVChannel() },
     groupListProvider: () -> TVGroupList = { TVGroupList() },
     onSelected: (TVChannel) -> Unit = {},
-    onSettings: () -> Unit = {},
+    onSettings: (() -> Unit)? = null,
     onUserAction: () -> Unit = {}
 ) {
     val groupList = groupListProvider()
@@ -179,20 +187,63 @@ fun MyTvMenuWidget(
         } ?: emptyList()
     }
 
-    Row {
-        MyTvMenu(
-            groups = groups,
-            itemsProvider = itemsProvider,
-            currentGroup = currentGroup,
-            currentItem = currentMenuItem,
-            onItemSelected = { selectedItem ->
-                val selectedChannel = groupList.channels.first { it.title == selectedItem.title }
+    var focusedGroup by remember { mutableStateOf(currentGroup) }
+    var focusedItem by remember { mutableStateOf(currentMenuItem) }
+    var items by remember { mutableStateOf(itemsProvider(focusedGroup.title)) }
+    val rightListFocusRequester = remember { FocusRequester() }
+
+    Row(modifier = modifier) {
+        Column (
+            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .width(250.dp)
+                .fillMaxHeight(),
+        ) {
+            MyTvMenuItemList(
+                items = groups,
+                selectedItem = focusedGroup,
+                onFocused = { menuItem ->
+                    focusedGroup = menuItem
+                    items = itemsProvider(menuItem.title)
+                },
+                onSelected = { menuItem ->
+                    focusedGroup = menuItem
+                    items = itemsProvider(menuItem.title)
+                    focusedItem = items.firstOrNull() ?: MyTvMenuItem()
+                    rightListFocusRequester.requestFocus()
+                },
+                onUserAction = onUserAction,
+                modifier = Modifier.weight(1f)
+            )
+            LeanbackVisible ({ onSettings != null }) {
+                TvLazyColumn(
+                    modifier = Modifier.width(250.dp),
+                    contentPadding = PaddingValues(8.dp),
+                ) {
+                    item {
+                        MyTvMenuItem(
+                            item = MyTvMenuItem(icon = Icons.Default.Settings, title = "Settings"),
+                            onSelected = onSettings!!
+                        )
+                    }
+                }
+            }
+        }
+        MyTvMenuItemList(
+            items = items,
+            selectedItem = focusedItem,
+            onSelected = { menuItem ->
+                focusedItem = menuItem
+                val selectedChannel = groupList.channels.first { it.title == menuItem.title }
                 onSelected(selectedChannel)
             },
-            modifier = modifier,
-            onSettings = onSettings,
             onUserAction = onUserAction,
+            focusRequester = rightListFocusRequester
         )
+    }
+
+    LaunchedEffect(Unit) {
+        rightListFocusRequester.requestFocus()
     }
 }
 

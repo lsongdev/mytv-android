@@ -10,13 +10,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import me.lsong.mytv.iptv.TVChannel
-import me.lsong.mytv.iptv.TVGroupList
-import me.lsong.mytv.iptv.TVGroupList.Companion.channels
-import me.lsong.mytv.iptv.TVGroupList.Companion.findChannelIndex
-import me.lsong.mytv.utils.Constants
+import me.lsong.mytv.providers.TVChannel
+import me.lsong.mytv.providers.TVGroupList
+import me.lsong.mytv.providers.TVGroupList.Companion.channels
+import me.lsong.mytv.providers.TVGroupList.Companion.findChannelIndex
 import me.lsong.mytv.ui.player.LeanbackVideoPlayerState
 import me.lsong.mytv.ui.player.rememberLeanbackVideoPlayerState
 import me.lsong.mytv.utils.Settings

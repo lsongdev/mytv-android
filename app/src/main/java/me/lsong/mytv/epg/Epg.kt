@@ -2,7 +2,7 @@ package me.lsong.mytv.epg
 
 import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
-import me.lsong.mytv.iptv.TVChannel
+import me.lsong.mytv.providers.TVChannel
 import me.lsong.mytv.epg.EpgChannel.Companion.currentProgrammes
 import me.lsong.mytv.epg.EpgProgramme.Companion.isLive
 

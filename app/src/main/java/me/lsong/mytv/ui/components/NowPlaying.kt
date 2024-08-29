@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import me.lsong.mytv.rememberLeanbackChildPadding
 import me.lsong.mytv.epg.EpgList
 import me.lsong.mytv.epg.EpgList.Companion.getEpgChannel
-import me.lsong.mytv.iptv.TVChannel
+import me.lsong.mytv.providers.TVChannel
 import me.lsong.mytv.ui.player.LeanbackVideoPlayer
 import me.lsong.mytv.ui.theme.LeanbackTheme
 
@@ -56,13 +56,13 @@ fun MyTvNowPlaying(
                 channelSourceIndexProvider = sourceIndexProvider,
             )
 
-            val epg = epgListProvider().getEpgChannel(channelProvider())
-            if (epg != null) {
-                MyTvEpgView(
-                    modifier = modifier,
-                    epgProvider = { epg },
-                )
-            }
+            // val epg = epgListProvider().getEpgChannel(channelProvider())
+            // if (epg != null) {
+            //     MyTvEpgView(
+            //         modifier = modifier,
+            //         epgProvider = { epg },
+            //     )
+            // }
             MyTvPlayerInfo(
                 modifier = modifier.padding(start = childPadding.start, bottom = childPadding.bottom),
                 metadataProvider = videoPlayerMetadataProvider
