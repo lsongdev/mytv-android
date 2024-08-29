@@ -197,7 +197,8 @@ fun MyTvMenuWidget(
             verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .width(250.dp)
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .background(androidx.tv.material3.MaterialTheme.colorScheme.background.copy(0.9f)),
         ) {
             MyTvMenuItemList(
                 items = groups,
@@ -238,7 +239,8 @@ fun MyTvMenuWidget(
                 onSelected(selectedChannel)
             },
             onUserAction = onUserAction,
-            focusRequester = rightListFocusRequester
+            focusRequester = rightListFocusRequester,
+            modifier = Modifier.background(androidx.tv.material3.MaterialTheme.colorScheme.background.copy(0.8f)),
         )
     }
 

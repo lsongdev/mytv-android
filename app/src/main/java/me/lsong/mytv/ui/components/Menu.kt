@@ -153,7 +153,6 @@ fun MyTvMenuItemList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
             .width(250.dp)
-            .background(MaterialTheme.colorScheme.background.copy(0.8f))
             .focusRequester(focusRequester)
     ) {
         itemsIndexed(items, key = { _, item -> item.hashCode() }) { index, item ->
