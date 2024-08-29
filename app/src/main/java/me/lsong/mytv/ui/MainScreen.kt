@@ -1,5 +1,6 @@
 package me.lsong.mytv.ui
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -11,9 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
@@ -51,15 +50,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.lsong.mytv.R
-import me.lsong.mytv.epg.EpgList
-import me.lsong.mytv.epg.EpgList.Companion.currentProgrammes
-import me.lsong.mytv.epg.EpgRepository
-import me.lsong.mytv.providers.IPTVProvider
+import me.lsong.mytv.providers.MyTvProviderManager
 import me.lsong.mytv.providers.TVChannel
-import me.lsong.mytv.providers.TVGroupList
 import me.lsong.mytv.providers.TVGroupList.Companion.channels
 import me.lsong.mytv.providers.TVGroupList.Companion.findGroupIndex
-import me.lsong.mytv.providers.TVProvider
 import me.lsong.mytv.ui.components.LeanbackVisible
 import me.lsong.mytv.ui.components.MonitorScreen
 import me.lsong.mytv.ui.components.MyTvMenuItem
@@ -75,88 +69,35 @@ import me.lsong.mytv.utils.handleLeanbackDragGestures
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 
 @Composable
-private fun StartScreen(state: LeanbackMainUiState) {
-    var isSettingsVisible by remember { mutableStateOf(false) }
-    BackHandler(enabled = !isSettingsVisible) {
-        isSettingsVisible = true
-    }
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .onPreviewKeyEvent { event ->
-                if (event.key == Key.Menu && event.type == KeyEventType.KeyUp) {
-                    isSettingsVisible = !isSettingsVisible
-                    true
-                } else {
-                    false
-                }
-            },
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Image(
-                painter = painterResource(id = R.mipmap.ic_launcher),
-                contentDescription = "DuckTV",
-                modifier = Modifier.size(96.dp)
-            )
-            Text(
-                text = Constants.APP_NAME,
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-
-            when (state) {
-                is LeanbackMainUiState.Loading -> {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .widthIn(300.dp, 800.dp)
-                            .height(8.dp)
-                    )
-                    state.message?.let { message ->
-                        Text(
-                            text = message,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
-                            modifier = Modifier.sizeIn(maxWidth = 500.dp),
-                        )
-                    }
-                }
-                is LeanbackMainUiState.Error -> {
-                    state.message?.let { message ->
-                        Text(
-                            text = message,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                            modifier = Modifier.sizeIn(maxWidth = 500.dp),
-                        )
-                    }
-                }
-                else -> {} // This case should never happen
-            }
-        }
-    }
-    LeanbackVisible({ isSettingsVisible }) {
-        SettingsScreen()
+fun MainScreen(
+    modifier: Modifier = Modifier,
+    mainViewModel: MainViewModel = viewModel(),
+) {
+    val uiState by mainViewModel.uiState.collectAsState()
+    when (val state = uiState) {
+        is LeanbackMainUiState.Loading,
+        is LeanbackMainUiState.Error -> StartScreen(state)
+        is LeanbackMainUiState.Ready -> MainContent(
+            modifier = modifier,
+            providerManager = state.providerManager,
+        )
     }
 }
 
 @Composable
 fun MyTvMenuWidget(
     modifier: Modifier = Modifier,
-    epgListProvider: () -> EpgList = { EpgList() },
+    providerManager: MyTvProviderManager,
+    // epgListProvider: () -> EpgList = { EpgList() },
+    // groupListProvider: () -> TVGroupList = { TVGroupList() },
     channelProvider: () -> TVChannel = { TVChannel() },
-    groupListProvider: () -> TVGroupList = { TVGroupList() },
     onSelected: (TVChannel) -> Unit = {},
     onSettings: (() -> Unit)? = null,
     onUserAction: () -> Unit = {}
 ) {
-    val groupList = groupListProvider()
+    // val epgList = epgListProvider()
+    val groupList = providerManager.groups();
     val currentChannel = channelProvider()
-    val epgList = epgListProvider()
 
     val groups = remember(groupList) {
         groupList.map { group ->
@@ -165,15 +106,17 @@ fun MyTvMenuWidget(
     }
 
     val currentGroup = remember(groupList, currentChannel) {
-        groups.firstOrNull { it.title == groupList[groupList.findGroupIndex(currentChannel)].title }
+        groups.firstOrNull { it.title == currentChannel.groupTitle }
             ?: MyTvMenuItem()
     }
+
+    Log.d("currentGroup", "$currentGroup $currentChannel")
 
     val currentMenuItem = remember(currentChannel) {
         MyTvMenuItem(
             icon = currentChannel.logo ?: "",
             title = currentChannel.title,
-            description = epgList.currentProgrammes(currentChannel)?.now?.title
+            // description = epgList.currentProgrammes(currentChannel)?.now?.title
         )
     }
 
@@ -182,7 +125,7 @@ fun MyTvMenuWidget(
             MyTvMenuItem(
                 icon = channel.logo ?: "",
                 title = channel.title,
-                description = epgList.currentProgrammes(channel)?.now?.title
+                // description = epgList.currentProgrammes(channel)?.now?.title
             )
         } ?: emptyList()
     }
@@ -205,11 +148,11 @@ fun MyTvMenuWidget(
                 selectedItem = focusedGroup,
                 onFocused = { menuItem ->
                     focusedGroup = menuItem
-                    items = itemsProvider(menuItem.title)
+                    items = itemsProvider(focusedGroup.title)
                 },
                 onSelected = { menuItem ->
                     focusedGroup = menuItem
-                    items = itemsProvider(menuItem.title)
+                    items = itemsProvider(focusedGroup.title)
                     focusedItem = items.firstOrNull() ?: MyTvMenuItem()
                     rightListFocusRequester.requestFocus()
                 },
@@ -232,6 +175,9 @@ fun MyTvMenuWidget(
         }
         MyTvMenuItemList(
             items = items,
+            modifier = Modifier
+                .fillMaxHeight()
+                .background(androidx.tv.material3.MaterialTheme.colorScheme.background.copy(0.8f)),
             selectedItem = focusedItem,
             onSelected = { menuItem ->
                 focusedItem = menuItem
@@ -240,7 +186,6 @@ fun MyTvMenuWidget(
             },
             onUserAction = onUserAction,
             focusRequester = rightListFocusRequester,
-            modifier = Modifier.background(androidx.tv.material3.MaterialTheme.colorScheme.background.copy(0.8f)),
         )
     }
 
@@ -250,42 +195,15 @@ fun MyTvMenuWidget(
 }
 
 @Composable
-fun MainScreen(
-    modifier: Modifier = Modifier,
-    mainViewModel: MainViewModel = viewModel(),
-) {
-    val uiState by mainViewModel.uiState.collectAsState()
-    when (val state = uiState) {
-        is LeanbackMainUiState.Loading,
-        is LeanbackMainUiState.Error -> StartScreen(state)
-        is LeanbackMainUiState.Ready -> MainContent(
-            modifier = modifier,
-            groups = state.groups,
-            epgList = state.epgList,
-        )
-    }
-}
-
-sealed interface LeanbackMainUiState {
-    data class Loading(val message: String? = null) : LeanbackMainUiState
-    data class Error(val message: String? = null) : LeanbackMainUiState
-    data class Ready(
-        val groups: TVGroupList = TVGroupList(),
-        val epgList: EpgList = EpgList(),
-    ) : LeanbackMainUiState
-}
-
-@Composable
 fun MainContent(
     modifier: Modifier = Modifier,
-    epgList: EpgList = EpgList(),
-    groups: TVGroupList = TVGroupList(),
+    providerManager: MyTvProviderManager,
     settingsViewModel: MyTvSettingsViewModel = viewModel(),
 ) {
     val videoPlayerState = rememberLeanbackVideoPlayerState()
     val mainContentState = rememberMainContentState(
+        providerManager = providerManager,
         videoPlayerState = videoPlayerState,
-        groups = groups,
     )
 
     BackHandler (
@@ -324,6 +242,8 @@ fun MainContent(
                 onNumber = {},
             )
             .handleLeanbackDragGestures(
+                onSwipeLeft = { mainContentState.changeToPrevSource() },
+                onSwipeRight = { mainContentState.changeToNextSource() },
                 onSwipeDown = {
                     if (settingsViewModel.iptvChannelChangeFlip) mainContentState.changeCurrentChannelToNext()
                     else mainContentState.changeCurrentChannelToPrev()
@@ -332,19 +252,12 @@ fun MainContent(
                     if (settingsViewModel.iptvChannelChangeFlip) mainContentState.changeCurrentChannelToPrev()
                     else mainContentState.changeCurrentChannelToNext()
                 },
-                onSwipeLeft = {
-                    mainContentState.changeToPrevSource()
-                },
-                onSwipeRight = {
-                    mainContentState.changeToNextSource()
-                },
             ),
     )
 
     LeanbackVisible({ mainContentState.isMenuVisible && !mainContentState.isChannelInfoVisible }) {
         MyTvMenuWidget(
-            epgListProvider = { epgList },
-            groupListProvider = { groups },
+            providerManager = providerManager,
             channelProvider = { mainContentState.currentChannel },
             onSelected = { channel -> mainContentState.changeCurrentChannel(channel) },
             onSettings = { mainContentState.showSettings() }
@@ -354,7 +267,6 @@ fun MainContent(
     LeanbackVisible({  mainContentState.isChannelInfoVisible }) {
         MyTvNowPlaying(
             modifier = modifier,
-            epgListProvider = { epgList },
             channelProvider = { mainContentState.currentChannel },
             channelIndexProvider = { mainContentState.currentChannelIndex },
             sourceIndexProvider = { mainContentState.currentSourceIndex },
@@ -369,41 +281,6 @@ fun MainContent(
 
     LeanbackVisible({ mainContentState.isSettingsVisale }) {
         SettingsScreen()
-    }
-}
-
-// MainViewModel.kt
-class MainViewModel : ViewModel() {
-    private val providers: List<TVProvider> = listOf(
-        IPTVProvider(EpgRepository())
-    )
-    private val _uiState = MutableStateFlow<LeanbackMainUiState>(LeanbackMainUiState.Loading())
-    val uiState: StateFlow<LeanbackMainUiState> = _uiState.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            refreshData()
-        }
-    }
-
-    private suspend fun refreshData() {
-        try {
-            _uiState.value = LeanbackMainUiState.Loading("Initializing providers...")
-            providers.forEachIndexed { index, provider ->
-                _uiState.value = LeanbackMainUiState.Loading("Initializing provider ${index + 1}/${providers.size}...")
-                provider.load()
-            }
-
-            val groupList = providers.flatMap { it.groups() }
-            val epgList = providers.map { it.epg() }.reduce { acc, epgList -> (acc + epgList) as EpgList }
-
-            _uiState.value = LeanbackMainUiState.Ready(
-                groups = TVGroupList(groupList),
-                epgList = epgList
-            )
-        } catch (error: Exception) {
-            _uiState.value = LeanbackMainUiState.Error(error.message)
-        }
     }
 }
 

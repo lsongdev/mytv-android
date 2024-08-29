@@ -13,12 +13,6 @@ import me.lsong.mytv.utils.Settings
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-// 接口定义
-interface TVProvider {
-    suspend fun load()
-    fun groups(): TVGroupList
-    suspend fun epg(): EpgList
-}
 
 // 数据类定义
 @Immutable
@@ -149,10 +143,13 @@ class IPTVProvider(private val epgRepository: EpgRepository) : TVProvider {
         groupList = process(sources)
         epgList = fetchEPGData(epgUrls)
     }
+    override fun groups(): TVGroupList {
+        return groupList
+    }
 
-    override suspend fun epg(): EpgList = epgList
-    override fun groups(): TVGroupList = groupList
-
+    override fun channels(groupTitle: String): TVChannelList {
+        return groupList.find { it.title == groupTitle }?.channels ?: TVChannelList()
+    }
 
     private suspend fun fetchIPTVSources(): Pair<List<TVSource>, List<String>> {
         val allSources = mutableListOf<TVSource>()
@@ -227,4 +224,23 @@ class IPTVProvider(private val epgRepository: EpgRepository) : TVProvider {
             Log.i("getM3uChannels", "解析直播源完成：${it.sources.size}个资源, $sourceUrl")
         }
     }
+}
+
+
+// Interface definition
+interface TVProvider {
+    suspend fun load()
+    fun groups(): TVGroupList
+    fun channels(groupTitle: String): TVChannelList
+}
+
+class MyTvProviderManager : TVProvider {
+    private val providers: List<TVProvider> = listOf(
+        IPTVProvider(EpgRepository())
+    )
+    override suspend fun load() {
+        providers.forEach { it.load() }
+    }
+    override fun groups(): TVGroupList = TVGroupList(providers.flatMap { it.groups() })
+    override fun channels(groupTitle: String): TVChannelList = TVChannelList(providers.flatMap { it.channels(groupTitle) })
 }

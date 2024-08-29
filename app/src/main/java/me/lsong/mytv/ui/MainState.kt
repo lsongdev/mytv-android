@@ -7,10 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import me.lsong.mytv.providers.MyTvProviderManager
 import me.lsong.mytv.providers.TVChannel
 import me.lsong.mytv.providers.TVGroupList
 import me.lsong.mytv.providers.TVGroupList.Companion.channels
@@ -22,10 +20,10 @@ import kotlin.math.max
 
 @Stable
 class MainContentState(
-    coroutineScope: CoroutineScope,
     private val videoPlayerState: LeanbackVideoPlayerState,
-    private val groups: TVGroupList,
+    providerManager: MyTvProviderManager,
 )  {
+    private val groups: TVGroupList = providerManager.groups();
     private var _currentChannel by mutableStateOf(TVChannel())
     val currentChannel get() = _currentChannel
 
@@ -58,15 +56,10 @@ class MainContentState(
 
     init {
         changeCurrentChannel(groups.channels.getOrElse(Settings.iptvLastIptvIdx) {
-            groups.firstOrNull()?.channels?.firstOrNull() ?: TVChannel()
+            groups.channels.firstOrNull() ?: TVChannel()
         })
 
         videoPlayerState.onReady {
-            coroutineScope.launch {
-                // val name = _currentChannel.name
-                // val urlIdx = _currentIptvUrlIdx
-            }
-
             // 记忆可播放的域名
             Settings.iptvPlayableHostList += getUrlHost(_currentChannel.urls[_currentIptvUrlIdx])
         }
@@ -100,13 +93,10 @@ class MainContentState(
     }
 
     fun changeCurrentChannel(channel: TVChannel, urlIdx: Int? = null) {
-        // isChannelInfoVisible = false
         if (channel == _currentChannel && urlIdx == null) return
         if (channel == _currentChannel && urlIdx != _currentIptvUrlIdx) {
             Settings.iptvPlayableHostList -= getUrlHost(_currentChannel.urls[_currentIptvUrlIdx])
         }
-        // _isTempPanelVisible = true
-
         _currentChannel = channel
         Settings.iptvLastIptvIdx = currentChannelIndex
 
@@ -131,7 +121,6 @@ class MainContentState(
         changeCurrentChannel(getNextChannel())
     }
 
-
     fun changeToPrevSource(){
         if (currentChannel.urls.size > 1) {
             changeCurrentChannel(
@@ -149,14 +138,16 @@ class MainContentState(
         }
     }
 
-    fun showChannelInfo() {
-        isMenuVisible = false
-        isChannelInfoVisible = true
-    }
-
     fun showMenu() {
         isMenuVisible = true
+        isSettingsVisale = false
         isChannelInfoVisible = false
+    }
+
+    fun showChannelInfo() {
+        isMenuVisible = false
+        isSettingsVisale = false
+        isChannelInfoVisible = true
     }
 
     fun showSettings() {
@@ -168,14 +159,12 @@ class MainContentState(
 
 @Composable
 fun rememberMainContentState(
-    coroutineScope: CoroutineScope = rememberCoroutineScope(),
+    providerManager: MyTvProviderManager,
     videoPlayerState: LeanbackVideoPlayerState = rememberLeanbackVideoPlayerState(),
-    groups: TVGroupList = TVGroupList(),
 ) = remember {
     MainContentState(
-        coroutineScope = coroutineScope,
+        providerManager = providerManager,
         videoPlayerState = videoPlayerState,
-        groups = groups,
     )
 }
 
