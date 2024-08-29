@@ -45,9 +45,9 @@ import me.lsong.mytv.epg.EpgChannel.Companion.currentProgrammes
 import me.lsong.mytv.epg.EpgProgramme
 import me.lsong.mytv.epg.EpgProgramme.Companion.isLive
 import me.lsong.mytv.ui.theme.LeanbackTheme
-import me.lsong.mytv.utils.Constants.TIME_ZONE
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 private fun MyTvEpgDayItem(
@@ -58,7 +58,7 @@ private fun MyTvEpgDayItem(
     onFocused: () -> Unit = {},
 ) {
     val day = dayProvider()
-    val dateFormat = SimpleDateFormat("E MM-dd", TIME_ZONE)
+    val dateFormat = SimpleDateFormat("E MM-dd", Locale.getDefault())
     val today = dateFormat.format(System.currentTimeMillis())
     val tomorrow = dateFormat.format(System.currentTimeMillis() + 24 * 3600 * 1000)
     val dayAfterTomorrow = dateFormat.format(System.currentTimeMillis() + 48 * 3600 * 1000)
@@ -146,7 +146,7 @@ fun MyTvEpgView(
     epgProvider: () -> EpgChannel? = { EpgChannel() },
     onUserAction: () -> Unit = {},
 ) {
-    val dateFormat = SimpleDateFormat("E MM-dd", TIME_ZONE)
+    val dateFormat = SimpleDateFormat("E MM-dd", Locale.getDefault())
     val today = dateFormat.format(System.currentTimeMillis())
     val epg = epgProvider()
     if (epg != null && epg.programmes.isNotEmpty()) {
@@ -247,7 +247,7 @@ fun MyTvEpgItem(
     var isFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val programme = currentProgrammeProvider()
-    val timeFormat = SimpleDateFormat("HH:mm", TIME_ZONE)
+    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val isLive = programme.isLive()
 
     LaunchedEffect(isLive) {

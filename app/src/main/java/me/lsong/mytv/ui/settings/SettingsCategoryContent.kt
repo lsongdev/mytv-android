@@ -17,7 +17,7 @@ import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryEpg
 import me.lsong.mytv.ui.settings.components.LeanbackSettingsCategoryIptv
 
 @Composable
-fun LeanbackSettingsCategoryContent(
+fun MyTvSettingsContent(
     modifier: Modifier = Modifier,
     focusedCategoryProvider: () -> MyTvSettingsCategories = { MyTvSettingsCategories.entries.first() },
 ) {

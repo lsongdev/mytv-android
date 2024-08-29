@@ -1,4 +1,4 @@
-package me.lsong.mytv.ui.widgets
+package me.lsong.mytv.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -18,10 +18,6 @@ import me.lsong.mytv.rememberLeanbackChildPadding
 import me.lsong.mytv.epg.EpgList
 import me.lsong.mytv.epg.EpgList.Companion.getEpgChannel
 import me.lsong.mytv.iptv.TVChannel
-import me.lsong.mytv.ui.components.LeanbackPanelDateTime
-import me.lsong.mytv.ui.components.MyTvChannelInfo
-import me.lsong.mytv.ui.components.MyTvEpgView
-import me.lsong.mytv.ui.components.MyTvPlayerInfo
 import me.lsong.mytv.ui.player.LeanbackVideoPlayer
 import me.lsong.mytv.ui.theme.LeanbackTheme
 

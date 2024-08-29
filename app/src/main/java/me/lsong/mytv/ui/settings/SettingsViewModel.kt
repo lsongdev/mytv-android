@@ -10,21 +10,6 @@ import androidx.lifecycle.ViewModel
 import me.lsong.mytv.utils.Settings
 
 class MyTvSettingsViewModel : ViewModel() {
-    private var _appBootLaunch by mutableStateOf(Settings.appBootLaunch)
-    var appBootLaunch: Boolean
-        get() = _appBootLaunch
-        set(value) {
-            _appBootLaunch = value
-            Settings.appBootLaunch = value
-        }
-
-    private var _appDeviceDisplayType by mutableStateOf(Settings.appDeviceDisplayType)
-    var appDeviceDisplayType: Settings.AppDeviceDisplayType
-        get() = _appDeviceDisplayType
-        set(value) {
-            _appDeviceDisplayType = value
-            Settings.appDeviceDisplayType = value
-        }
 
     private var _debugShowFps by mutableStateOf(Settings.debugShowFps)
     var debugShowFps: Boolean
@@ -42,28 +27,12 @@ class MyTvSettingsViewModel : ViewModel() {
             Settings.debugShowVideoPlayerMetadata = value
         }
 
-    private var _iptvLastIptvIdx by mutableIntStateOf(Settings.iptvLastIptvIdx)
-    var iptvLastIptvIdx: Int
-        get() = _iptvLastIptvIdx
-        set(value) {
-            _iptvLastIptvIdx = value
-            Settings.iptvLastIptvIdx = value
-        }
-
     private var _iptvChannelChangeFlip by mutableStateOf(Settings.iptvChannelChangeFlip)
     var iptvChannelChangeFlip: Boolean
         get() = _iptvChannelChangeFlip
         set(value) {
             _iptvChannelChangeFlip = value
             Settings.iptvChannelChangeFlip = value
-        }
-
-    private var _iptvSourceCacheTime by mutableLongStateOf(Settings.iptvSourceCacheTime)
-    var iptvSourceCacheTime: Long
-        get() = _iptvSourceCacheTime
-        set(value) {
-            _iptvSourceCacheTime = value
-            Settings.iptvSourceCacheTime = value
         }
 
     private var _iptvSourceUrls by mutableStateOf(Settings.iptvSourceUrls)
@@ -98,14 +67,6 @@ class MyTvSettingsViewModel : ViewModel() {
             Settings.iptvChannelFavoriteList = value
         }
 
-    private var _epgRefreshTimeThreshold by mutableIntStateOf(Settings.epgRefreshTimeThreshold)
-    var epgRefreshTimeThreshold: Int
-        get() = _epgRefreshTimeThreshold
-        set(value) {
-            _epgRefreshTimeThreshold = value
-            Settings.epgRefreshTimeThreshold = value
-        }
-
     private var _epgXmlUrlHistoryList by mutableStateOf(Settings.epgUrls)
     var epgUrls: Set<String>
         get() = _epgXmlUrlHistoryList
@@ -130,29 +91,13 @@ class MyTvSettingsViewModel : ViewModel() {
             Settings.uiFontScaleRatio = value
         }
 
-    private var _uiTimeShowMode by mutableStateOf(Settings.uiTimeShowMode)
-    var uiTimeShowMode: Settings.UiTimeShowMode
-        get() = _uiTimeShowMode
-        set(value) {
-            _uiTimeShowMode = value
-            Settings.uiTimeShowMode = value
-        }
-
-    private var _uiPipMode by mutableStateOf(Settings.uiPipMode)
-    var uiPipMode: Boolean
-        get() = _uiPipMode
-        set(value) {
-            _uiPipMode = value
-            Settings.uiPipMode = value
-        }
-
-    private var _videoPlayerUserAgent by mutableStateOf(Settings.videoPlayerUserAgent)
-    var videoPlayerUserAgent: String
-        get() = _videoPlayerUserAgent
-        set(value) {
-            _videoPlayerUserAgent = value
-            Settings.videoPlayerUserAgent = value
-        }
+    // private var _uiPipMode by mutableStateOf(Settings.uiPipMode)
+    // var uiPipMode: Boolean
+    //     get() = _uiPipMode
+    //     set(value) {
+    //         _uiPipMode = value
+    //         Settings.uiPipMode = value
+    //     }
 
     private var _videoPlayerLoadTimeout by mutableLongStateOf(Settings.videoPlayerLoadTimeout)
     var videoPlayerLoadTimeout: Long

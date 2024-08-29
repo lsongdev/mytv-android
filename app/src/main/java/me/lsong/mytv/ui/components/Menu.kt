@@ -1,15 +1,12 @@
-package me.lsong.mytv.ui.widgets
+package me.lsong.mytv.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -82,6 +79,7 @@ fun MyTvMenuItem(
                     .align(Alignment.Center)
                     .focusRequester(focusRequester)
                     .onFocusChanged { if (it.isFocused) onFocused() }
+                    .align(Alignment.Center)
                     .handleLeanbackKeyEvents(
                         key = item.hashCode(),
                         onSelect = onSelected,
@@ -207,7 +205,7 @@ fun MyTvMenuItemList(
     onFavoriteToggle: (MyTvMenuItem) -> Unit = {},
     focusRequester: FocusRequester = remember { FocusRequester() },
     modifier: Modifier = Modifier,
-    onSettings: () -> Unit = {}
+    onSettings: (() -> Unit)? = null,
 ) {
     var focusedItem by remember { mutableStateOf(selectedItem) }
     val selectedIndex = remember(selectedItem, items) { items.indexOf(selectedItem) }
@@ -237,7 +235,7 @@ fun MyTvMenuItemList(
             state = listState,
             contentPadding = PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).align(Alignment.CenterHorizontally)
         ) {
             itemsIndexed(items, key = { _, item -> item.hashCode() }) { index, item ->
                 MyTvMenuItem(
@@ -254,20 +252,22 @@ fun MyTvMenuItemList(
                 )
             }
         }
-
         // Settings button at the bottom
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(8.dp)
-        ) {
-            MyTvMenuItem(
-                item = MyTvMenuItem(icon = Icons.Default.Settings, title = "Settings"),
-                focusRequester = settingsFocusRequester,
-                onSelected = onSettings
-            )
+        if (onSettings != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(8.dp)
+            ) {
+                MyTvMenuItem(
+                    item = MyTvMenuItem(icon = Icons.Default.Settings, title = "Settings"),
+                    focusRequester = settingsFocusRequester,
+                    onSelected = onSettings
+                )
+            }
         }
+
     }
 }
 

@@ -8,9 +8,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.xmlpull.v1.XmlPullParser
 import me.lsong.mytv.epg.fetcher.EpgFetcher
-import me.lsong.mytv.utils.Constants.TIME_ZONE
 import java.io.StringReader
 import java.text.SimpleDateFormat
+import java.util.Locale
 
 /**
  * 节目单获取
@@ -47,7 +47,7 @@ class EpgRepository {
                         val title = parser.nextText()
                         fun parseTime(time: String): Long {
                             if (time.length < 14) return 0
-                            return SimpleDateFormat("yyyyMMddHHmmss Z", TIME_ZONE).parse(time)?.time ?: 0
+                            return SimpleDateFormat("yyyyMMddHHmmss Z", Locale.getDefault()).parse(time)?.time ?: 0
                         }
                         val programme = EpgProgramme(
                             channelId = channelId,

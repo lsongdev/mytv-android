@@ -185,7 +185,6 @@ private fun MyTvSettingsPreview() {
         LeanbackSettingsCategoryIptv(
             modifier = Modifier.padding(20.dp),
             settingsViewModel = MyTvSettingsViewModel().apply {
-                iptvSourceCacheTime = 3_600_000
                 iptvSourceUrls = setOf(
                     "https://iptv-org.github.io/iptv/iptv.m3u",
                     "https://iptv-org.github.io/iptv/iptv2.m3u",

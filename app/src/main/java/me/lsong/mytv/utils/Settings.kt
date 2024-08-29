@@ -45,9 +45,6 @@ object Settings {
         /** 直播源url */
         IPTV_SOURCE_URL_LIST,
 
-        /** 直播源缓存时间（毫秒） */
-        IPTV_SOURCE_CACHE_TIME,
-
         /** 直播源可播放host列表 */
         IPTV_PLAYABLE_HOST_LIST,
 
@@ -79,26 +76,12 @@ object Settings {
         UI_PIP_MODE,
 
         /** ==================== 播放器 ==================== */
-        /** 播放器 自定义ua */
-        VIDEO_PLAYER_USER_AGENT,
-
         /** 播放器 加载超时 */
         VIDEO_PLAYER_LOAD_TIMEOUT,
 
         /** 播放器 画面比例 */
         VIDEO_PLAYER_ASPECT_RATIO,
     }
-
-    /** ==================== 应用 ==================== */
-    /** 开机自启 */
-    var appBootLaunch: Boolean
-        get() = sp.getBoolean(KEY.APP_BOOT_LAUNCH.name, false)
-        set(value) = sp.edit().putBoolean(KEY.APP_BOOT_LAUNCH.name, value).apply()
-
-    /** 设备显示类型 */
-    var appDeviceDisplayType: AppDeviceDisplayType
-        get() = AppDeviceDisplayType.fromValue(sp.getInt(KEY.APP_DEVICE_DISPLAY_TYPE.name, 0))
-        set(value) = sp.edit().putInt(KEY.APP_DEVICE_DISPLAY_TYPE.name, value.value).apply()
 
     /** ==================== 调式 ==================== */
     /** 显示fps */
@@ -122,11 +105,6 @@ object Settings {
         get() = sp.getBoolean(KEY.IPTV_CHANNEL_CHANGE_FLIP.name, false)
         set(value) = sp.edit().putBoolean(KEY.IPTV_CHANNEL_CHANGE_FLIP.name, value).apply()
 
-    /** 直播源缓存时间（毫秒） */
-    var iptvSourceCacheTime: Long
-        get() = sp.getLong(KEY.IPTV_SOURCE_CACHE_TIME.name, Constants.IPTV_SOURCE_CACHE_TIME)
-        set(value) = sp.edit().putLong(KEY.IPTV_SOURCE_CACHE_TIME.name, value).apply()
-
     /** 直播源可播放host列表 */
     var iptvPlayableHostList: Set<String>
         get() = sp.getStringSet(KEY.IPTV_PLAYABLE_HOST_LIST.name, emptySet()) ?: emptySet()
@@ -149,11 +127,6 @@ object Settings {
 
     /** ==================== 节目单 ==================== */
 
-    /** 节目单刷新时间阈值（小时） */
-    var epgRefreshTimeThreshold: Int
-        get() = sp.getInt(KEY.EPG_REFRESH_TIME_THRESHOLD.name, Constants.EPG_REFRESH_TIME_THRESHOLD)
-        set(value) = sp.edit().putInt(KEY.EPG_REFRESH_TIME_THRESHOLD.name, value).apply()
-
     /** 节目单历史列表 */
     var epgUrls: Set<String>
         get() = sp.getStringSet(KEY.EPG_URL_LIST.name, emptySet()) ?: emptySet()
@@ -170,23 +143,7 @@ object Settings {
         get() = sp.getFloat(KEY.UI_FONT_SCALE_RATIO.name, 1f)
         set(value) = sp.edit().putFloat(KEY.UI_FONT_SCALE_RATIO.name, value).apply()
 
-    /** 时间显示模式 */
-    var uiTimeShowMode: UiTimeShowMode
-        get() = UiTimeShowMode.fromValue(sp.getInt(KEY.UI_TIME_SHOW_MODE.name, 0))
-        set(value) = sp.edit().putInt(KEY.UI_TIME_SHOW_MODE.name, value.value).apply()
-
-    /** 画中画模式 */
-    var uiPipMode: Boolean
-        get() = sp.getBoolean(KEY.UI_PIP_MODE.name, false)
-        set(value) = sp.edit().putBoolean(KEY.UI_PIP_MODE.name, value).apply()
-
     /** ==================== 播放器 ==================== */
-    /** 播放器 自定义ua */
-    var videoPlayerUserAgent: String
-        get() = (sp.getString(KEY.VIDEO_PLAYER_USER_AGENT.name, "") ?: "").ifBlank {
-            Constants.VIDEO_PLAYER_USER_AGENT
-        }
-        set(value) = sp.edit().putString(KEY.VIDEO_PLAYER_USER_AGENT.name, value).apply()
 
     /** 播放器 加载超时 */
     var videoPlayerLoadTimeout: Long
@@ -199,43 +156,6 @@ object Settings {
             sp.getInt(KEY.VIDEO_PLAYER_ASPECT_RATIO.name, VideoPlayerAspectRatio.ORIGINAL.value)
         )
         set(value) = sp.edit().putInt(KEY.VIDEO_PLAYER_ASPECT_RATIO.name, value.value).apply()
-
-    enum class UiTimeShowMode(val value: Int) {
-        /** 隐藏 */
-        HIDDEN(0),
-
-        /** 常显 */
-        ALWAYS(1),
-
-        /** 整点 */
-        EVERY_HOUR(2),
-
-        /** 半点 */
-        HALF_HOUR(3);
-
-        companion object {
-            fun fromValue(value: Int): UiTimeShowMode {
-                return entries.firstOrNull { it.value == value } ?: ALWAYS
-            }
-        }
-    }
-
-    enum class AppDeviceDisplayType(val value: Int) {
-        /** tv端 */
-        LEANBACK(0),
-
-        /** 手机端 */
-        MOBILE(1),
-
-        /** 平板端 */
-        PAD(2);
-
-        companion object {
-            fun fromValue(value: Int): AppDeviceDisplayType {
-                return entries.firstOrNull { it.value == value } ?: LEANBACK
-            }
-        }
-    }
 
     enum class VideoPlayerAspectRatio(val value: Int) {
         /** 原始 */

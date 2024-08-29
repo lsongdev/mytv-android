@@ -7,7 +7,9 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Rational
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.IntRange
@@ -39,8 +41,6 @@ import kotlinx.coroutines.flow.debounce
 import me.lsong.mytv.ui.MainScreen
 import me.lsong.mytv.ui.components.LeanbackPadding
 import me.lsong.mytv.ui.theme.LeanbackTheme
-import me.lsong.mytv.ui.toast.LeanbackToastScreen
-import me.lsong.mytv.ui.toast.LeanbackToastState
 import me.lsong.mytv.utils.HttpServer
 import me.lsong.mytv.utils.Settings
 import kotlin.system.exitProcess
@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             // 隐藏状态栏、导航栏
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             WindowCompat.setDecorFitsSystemWindows(window, false)
             WindowCompat.getInsetsController(window, window.decorView).let { insetsController ->
                 insetsController.hide(WindowInsetsCompat.Type.statusBars())
@@ -58,23 +59,19 @@ class MainActivity : ComponentActivity() {
                 insetsController.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
-
             // 屏幕常亮
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-            LeanbackTheme {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
-                ) {
-                    LeanbackApp(
-                        onBackPressed = {
-                            finish()
-                            exitProcess(0)
-                        },
-                    )
+            val doubleBackPressedExitState = rememberLeanbackDoubleBackPressedExitState()
+            BackHandler {
+                if (doubleBackPressedExitState.allowExit) {
+                    finish()
+                    exitProcess(0)
+                } else {
+                    doubleBackPressedExitState.backPress()
+                    Toast.makeText(applicationContext, "再按一次退出", Toast.LENGTH_SHORT).show()
                 }
+            }
+            LeanbackTheme {
+                MainScreen()
             }
         }
 
@@ -85,11 +82,7 @@ class MainActivity : ComponentActivity() {
             // Force landscape mode on non-TV devices
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
         }
-
-
-        HttpServer.start(applicationContext, showToast = {
-            LeanbackToastState.I.showToast(it, id = "httpServer")
-        })
+        HttpServer.start(applicationContext)
     }
 
     private fun isTVDevice(): Boolean {
@@ -99,35 +92,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        if (!Settings.uiPipMode) return
-
-        enterPictureInPictureMode(
-            PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
-                .build()
-        )
+        // if (!Settings.uiPipMode) return
+        // enterPictureInPictureMode(
+        //     PictureInPictureParams.Builder()
+        //         .setAspectRatio(Rational(16, 9))
+        //         .build()
+        // )
         super.onUserLeaveHint()
     }
-}
-
-@Composable
-fun LeanbackApp(
-    modifier: Modifier = Modifier,
-    onBackPressed: () -> Unit = {},
-) {
-    val doubleBackPressedExitState = rememberLeanbackDoubleBackPressedExitState()
-    LeanbackToastScreen()
-    MainScreen(
-        modifier = modifier,
-        onBackPressed = {
-            if (doubleBackPressedExitState.allowExit) {
-                onBackPressed()
-            } else {
-                doubleBackPressedExitState.backPress()
-                LeanbackToastState.I.showToast("再按一次退出")
-            }
-        },
-    )
 }
 
 /**

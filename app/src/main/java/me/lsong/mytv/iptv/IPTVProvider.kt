@@ -103,46 +103,35 @@ data class M3uData(
     val sources: List<TVSource>
 )
 
-// IPTV解析器
-interface IptvParser {
-    fun isSupport(url: String, data: String): Boolean
-    suspend fun parse(data: String): M3uData
-
-    companion object {
-        val instances = listOf(M3uIptvParser())
-    }
-}
-
-class M3uIptvParser : IptvParser {
-    override fun isSupport(url: String, data: String) = data.startsWith("#EXTM3U")
-
-    override suspend fun parse(data: String): M3uData {
-        val lines = data.split("\r\n", "\n").filter { it.isNotBlank() }
-        val channels = mutableListOf<TVSource>()
+class M3uParser {
+    fun parse(data: String): M3uData {
         var xTvgUrl: String? = null
-
-        lines.windowed(2) { (line1, line2) ->
-            when {
-                line1.startsWith("#EXTM3U") -> {
-                    xTvgUrl = Regex("x-tvg-url=\"(.+?)\"").find(line1)?.groupValues?.get(1)?.trim()
-                }
-                line1.startsWith("#EXTINF") && !line2.startsWith("#") -> {
-                    val title = line1.split(",").lastOrNull()?.trim() ?: return@windowed
-                    val attributes = parseTvgAttributes(line1)
-                    channels.add(
-                        TVSource(
-                            tvgId = attributes["tvg-id"],
-                            tvgName = attributes["tvg-name"],
-                            tvgLogo = attributes["tvg-logo"],
-                            groupTitle = attributes["group-title"],
-                            title = title,
-                            url = line2.trim()
+        val channels = mutableListOf<TVSource>()
+        data
+            .trim()
+            .split("\r\n", "\n")
+            .filter { it.isNotBlank() }
+            .windowed(2) { (line1, line2) ->
+                when {
+                    line1.startsWith("#EXTM3U") -> {
+                        xTvgUrl = Regex("x-tvg-url=\"(.+?)\"").find(line1)?.groupValues?.get(1)?.trim()
+                    }
+                    line1.startsWith("#EXTINF") && !line2.startsWith("#") -> {
+                        val title = line1.split(",").lastOrNull()?.trim() ?: return@windowed
+                        val attributes = parseTvgAttributes(line1)
+                        channels.add(
+                            TVSource(
+                                tvgId = attributes["tvg-id"],
+                                tvgName = attributes["tvg-name"],
+                                tvgLogo = attributes["tvg-logo"],
+                                groupTitle = attributes["group-title"],
+                                title = title,
+                                url = line2.trim()
+                            )
                         )
-                    )
+                    }
                 }
             }
-        }
-
         return M3uData(epgUrl = xTvgUrl, channels)
     }
 
@@ -151,95 +140,91 @@ class M3uIptvParser : IptvParser {
             .associate { it.groupValues[1] to it.groupValues[2].trim() }
 }
 
-// 合并后的 IPTV 提供者和仓库
 class IPTVProvider(private val epgRepository: EpgRepository) : TVProvider {
     private var groupList: TVGroupList = TVGroupList()
     private var epgList: EpgList = EpgList()
 
     override suspend fun load() {
         val (sources, epgUrls) = fetchIPTVSources()
-        groupList = processChannelSources(sources)
+        groupList = process(sources)
         epgList = fetchEPGData(epgUrls)
     }
 
+    override suspend fun epg(): EpgList = epgList
     override fun groups(): TVGroupList = groupList
 
-    override suspend fun epg(): EpgList = epgList
 
     private suspend fun fetchIPTVSources(): Pair<List<TVSource>, List<String>> {
         val allSources = mutableListOf<TVSource>()
         val epgUrls = mutableListOf<String>()
-
         val iptvUrls = Settings.iptvSourceUrls.ifEmpty { listOf(Constants.IPTV_SOURCE_URL) }
-
         iptvUrls.forEach { url ->
-            val m3u = fetchDataWithRetry { getChannelSourceList(sourceUrl = url) }
+            val m3u = retry { getM3uChannels(sourceUrl = url) }
             allSources.addAll(m3u.sources)
             m3u.epgUrl?.let { epgUrls.add(it) }
         }
-
         if (epgUrls.isEmpty()) epgUrls.add(Constants.EPG_XML_URL)
-
         return Pair(allSources, epgUrls.distinct())
     }
 
     private suspend fun fetchEPGData(epgUrls: List<String>): EpgList {
         val epgChannels = mutableListOf<EpgChannel>()
         epgUrls.forEach { url ->
-            val epg = fetchDataWithRetry { epgRepository.getEpgList(url) }
+            val epg = retry { epgRepository.getEpgList(url) }
             epgChannels.addAll(epg.value)
         }
         return EpgList(epgChannels.distinctBy { it.id })
     }
 
-    private fun processChannelSources(sources: List<TVSource>): TVGroupList {
-        val channelList = sources.groupBy { it.name }
-            .map { (name, channelSources) ->
+    private fun process(sources: List<TVSource>): TVGroupList {
+        val channels = sources.groupBy { it.name }
+            .map { (name, sources) ->
                 TVChannel(
                     name = name,
-                    title = channelSources.first().title,
-                    sources = channelSources
+                    title = sources.first().title,
+                    sources = sources,
                 )
             }
 
         return TVGroupList(
-            channelList.groupBy { it.groupTitle ?: "其他" }
+            channels.groupBy { it.groupTitle ?: "其他" }
                 .map { (title, channels) -> TVGroup(title = title, channels = TVChannelList(channels)) }
         )
     }
 
-    private suspend fun <T> fetchDataWithRetry(fetch: suspend () -> T): T {
+    private suspend fun <T> retry(fn: suspend () -> T): T {
         repeat(Constants.HTTP_RETRY_COUNT) {
             try {
-                return fetch()
+                return fn()
             } catch (e: Exception) {
-                if (it == Constants.HTTP_RETRY_COUNT - 1) throw e
+                if (it == Constants.HTTP_RETRY_COUNT) throw e
                 delay(Constants.HTTP_RETRY_INTERVAL)
             }
         }
         throw IllegalStateException("Failed to fetch data after ${Constants.HTTP_RETRY_COUNT} attempts")
     }
 
-    private suspend fun fetchSource(sourceUrl: String) = withContext(Dispatchers.IO) {
-        Log.d("iptv", sourceUrl)
+    private suspend fun request(url: String) = withContext(Dispatchers.IO) {
+        Log.d("request", "request start: $url")
         val client = OkHttpClient()
-        val request = Request.Builder().url(sourceUrl).build()
+        val request = Request.Builder().url(url).build()
         try {
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw Exception("fetchSource failed: ${response.code}")
+                if (!response.isSuccessful) throw Exception("failed: ${response.code}")
                 response.body?.string()?.trim() ?: throw Exception("Empty response body")
             }
         } catch (ex: Exception) {
-            Log.d("iptv", "获取远程直播源失败: $sourceUrl")
-            throw Exception("获取远程直播源失败，请检查网络连接", ex)
+            val e = Exception("request failed $url", ex)
+            Log.d("request", "${e.message}")
+            throw  e;
         }
     }
 
-    private suspend fun getChannelSourceList(sourceUrl: String): M3uData {
-        val sourceData = fetchSource(sourceUrl)
-        val parser = IptvParser.instances.first { it.isSupport(sourceUrl, sourceData) }
-        return parser.parse(sourceData).also {
-            Log.i("iptv", "解析直播源完成：${it.sources.size}个资源, $sourceUrl")
+    private suspend fun getM3uChannels(sourceUrl: String): M3uData {
+        val parser = M3uParser()
+        val content = request(sourceUrl)
+        return parser.parse(content).also {
+            Log.i("getM3uChannels", "解析直播源完成：${it.sources.size}个资源, $sourceUrl")
         }
     }
 }

@@ -1,6 +1,8 @@
 package me.lsong.mytv.ui.settings.components
 
+import android.media.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
@@ -13,7 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Icon
 import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.Text
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
@@ -24,6 +29,7 @@ fun LeanbackSettingsCategoryListItem(
     headlineContent: String,
     supportingContent: String? = null,
     trailingContent: @Composable () -> Unit = {},
+    leadingContent:  @Composable (BoxScope.() -> Unit)? = null,
     onSelected: (() -> Unit)? = null,
     onLongSelected: () -> Unit = {},
 ) {
@@ -36,6 +42,7 @@ fun LeanbackSettingsCategoryListItem(
         colors = ListItemDefaults.colors(
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp),
         ),
+        leadingContent = leadingContent,
         headlineContent = {
             Text(text = headlineContent)
         },
@@ -71,11 +78,13 @@ fun LeanbackSettingsCategoryListItem(
     headlineContent: String,
     supportingContent: String? = null,
     trailingContent: String,
+    leadingContent:  @Composable (BoxScope.() -> Unit)? = null,
     onSelected: () -> Unit = {},
     onLongSelected: () -> Unit = {},
 ) {
     LeanbackSettingsCategoryListItem(
         modifier = modifier,
+        leadingContent = leadingContent,
         headlineContent = headlineContent,
         supportingContent = supportingContent,
         trailingContent = { Text(trailingContent) },

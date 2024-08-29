@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import me.lsong.mytv.MainActivity
 import me.lsong.mytv.R
 import org.json.JSONObject
 import java.net.Inet4Address
@@ -22,11 +23,10 @@ import java.net.SocketException
 
 object HttpServer  {
     private const val SERVER_PORT = 10481
-    private var showToast: (String) -> Unit = { }
     val serverUrl: String by lazy {
         "http://${getLocalIpAddress()}:$SERVER_PORT"
     }
-    fun start(context: Context, showToast: (String) -> Unit) {
+    fun start(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val server = AsyncHttpServer()
@@ -43,8 +43,6 @@ object HttpServer  {
                 server.post("/api/settings") { request, response ->
                     handleSetSettings(request, response)
                 }
-
-                HttpServer.showToast = showToast
                 Log.i("server", "服务已启动: 0.0.0.0:$SERVER_PORT")
             } catch (ex: Exception) {
                 Log.e("server", "服务启动失败: ${ex.message}", ex)
@@ -109,12 +107,6 @@ object HttpServer  {
             // 保存设置
             Settings.epgUrls = epgUrls
             Settings.iptvSourceUrls = iptvSourceUrls
-
-            // 显示提示信息
-            CoroutineScope(Dispatchers.Main).launch {
-                showToast("设置已保存")
-            }
-
             wrapResponse(response).send("设置已成功保存")
         } catch (e: Exception) {
             wrapResponse(response).code(400).send("无效的JSON格式: ${e.message}")

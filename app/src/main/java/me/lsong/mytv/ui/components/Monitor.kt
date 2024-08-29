@@ -33,7 +33,7 @@ import me.lsong.mytv.rememberLeanbackChildPadding
 import me.lsong.mytv.ui.theme.LeanbackTheme
 
 @Composable
-fun LeanbackMonitorScreen(
+fun MonitorScreen(
     modifier: Modifier = Modifier,
 ) {
     val childPadding = rememberLeanbackChildPadding()
@@ -170,6 +170,6 @@ private fun LeanbackMonitorFpsBarPreview() {
 @Composable
 private fun LeanbackMonitorScreenPreview() {
     LeanbackTheme {
-        LeanbackMonitorScreen()
+        MonitorScreen()
     }
 }

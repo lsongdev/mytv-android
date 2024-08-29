@@ -65,12 +65,8 @@ class MainContentState(
 
         videoPlayerState.onReady {
             coroutineScope.launch {
-                val name = _currentChannel.name
-                val urlIdx = _currentIptvUrlIdx
-                delay(Constants.UI_TEMP_PANEL_SCREEN_SHOW_DURATION)
-                if (name == _currentChannel.name && urlIdx == _currentIptvUrlIdx) {
-                    // _isTempPanelVisible = false
-                }
+                // val name = _currentChannel.name
+                // val urlIdx = _currentIptvUrlIdx
             }
 
             // 记忆可播放的域名

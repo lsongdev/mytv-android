@@ -5,6 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -29,6 +34,16 @@ import androidx.tv.foundation.lazy.list.itemsIndexed
 import me.lsong.mytv.ui.theme.LeanbackTheme
 import me.lsong.mytv.utils.handleLeanbackKeyEvents
 
+enum class MyTvSettingsCategories(
+    val icon: ImageVector,
+    val title: String
+) {
+    APP(Icons.Default.SmartDisplay, "应用"),
+    IPTV(Icons.Default.LiveTv, "直播源"),
+    EPG(Icons.Default.Menu, "节目单"),
+    ABOUT(Icons.Default.Info, "关于"),
+}
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MyTvSettingsCategoryList(
@@ -39,7 +54,7 @@ fun MyTvSettingsCategoryList(
     var hasFocused = rememberSaveable { false }
 
     TvLazyColumn(
-        contentPadding = PaddingValues(8.dp),
+        contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = modifier.focusRestorer().fillMaxSize()
     ) {
@@ -53,7 +68,7 @@ fun MyTvSettingsCategoryList(
                 }
             }
 
-            LeanbackSettingsCategoryItem(
+            MyTvSettingsCategoryItem(
                 modifier = Modifier
                     .focusRequester(focusRequester)
                     .fillMaxWidth(),
@@ -67,7 +82,7 @@ fun MyTvSettingsCategoryList(
 }
 
 @Composable
-private fun LeanbackSettingsCategoryItem(
+private fun MyTvSettingsCategoryItem(
     modifier: Modifier = Modifier,
     icon: ImageVector,
     title: String,
@@ -108,12 +123,12 @@ private fun LeanbackSettingsCategoryItemPreview() {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            LeanbackSettingsCategoryItem(
+            MyTvSettingsCategoryItem(
                 icon = MyTvSettingsCategories.ABOUT.icon,
                 title = MyTvSettingsCategories.ABOUT.title,
             )
 
-            LeanbackSettingsCategoryItem(
+            MyTvSettingsCategoryItem(
                 icon = MyTvSettingsCategories.ABOUT.icon,
                 title = MyTvSettingsCategories.ABOUT.title,
                 isSelectedProvider = { true },

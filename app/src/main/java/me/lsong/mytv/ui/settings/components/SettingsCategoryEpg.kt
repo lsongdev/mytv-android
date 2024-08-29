@@ -30,20 +30,20 @@ fun LeanbackSettingsCategoryEpg(
         modifier = modifier.padding(5.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item {
-            LeanbackSettingsCategoryListItem(
-                headlineContent = "节目单刷新时间阈值",
-                supportingContent = "短按增加1小时，长按设为0小时；时间不到${settingsViewModel.epgRefreshTimeThreshold}:00节目单将不会刷新",
-                trailingContent = "${settingsViewModel.epgRefreshTimeThreshold}小时",
-                onSelected = {
-                    settingsViewModel.epgRefreshTimeThreshold =
-                        (settingsViewModel.epgRefreshTimeThreshold + 1) % 12
-                },
-                onLongSelected = {
-                    settingsViewModel.epgRefreshTimeThreshold = 0
-                },
-            )
-        }
+        // item {
+        //     LeanbackSettingsCategoryListItem(
+        //         headlineContent = "节目单刷新时间阈值",
+        //         supportingContent = "短按增加1小时，长按设为0小时；时间不到${settingsViewModel.epgRefreshTimeThreshold}:00节目单将不会刷新",
+        //         trailingContent = "${settingsViewModel.epgRefreshTimeThreshold}小时",
+        //         onSelected = {
+        //             settingsViewModel.epgRefreshTimeThreshold =
+        //                 (settingsViewModel.epgRefreshTimeThreshold + 1) % 12
+        //         },
+        //         onLongSelected = {
+        //             settingsViewModel.epgRefreshTimeThreshold = 0
+        //         },
+        //     )
+        // }
         item{
             Column {
                 Text(text = "自定义节目单", style = MaterialTheme.typography.titleMedium)

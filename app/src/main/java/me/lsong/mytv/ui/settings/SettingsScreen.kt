@@ -1,11 +1,11 @@
-package top.yogiczy.mytv.ui.screens.leanback.settings
+package me.lsong.mytv.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -20,14 +20,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import me.lsong.mytv.rememberLeanbackChildPadding
-import me.lsong.mytv.ui.settings.LeanbackSettingsCategoryContent
-import me.lsong.mytv.ui.settings.MyTvSettingsCategories
-import me.lsong.mytv.ui.settings.MyTvSettingsCategoryList
 import me.lsong.mytv.ui.theme.LeanbackTheme
 
 @Composable
-fun MyTvSettingsScreen(
+fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -45,15 +41,15 @@ fun MyTvSettingsScreen(
             .pointerInput(Unit) { detectTapGestures(onTap = { }) },
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(40.dp),
+            // horizontalArrangement = Arrangement.spacedBy(40.dp),
         ) {
             MyTvSettingsCategoryList(
-                modifier = Modifier.width(180.dp),
+                modifier = Modifier.width(300.dp),
                 focusedCategoryProvider = { focusedCategory },
                 onFocused = { focusedCategory = it },
             )
 
-            LeanbackSettingsCategoryContent(
+            MyTvSettingsContent(
                 focusedCategoryProvider = { focusedCategory },
             )
         }
@@ -64,6 +60,6 @@ fun MyTvSettingsScreen(
 @Composable
 private fun LeanbackSettingsScreenPreview() {
     LeanbackTheme {
-        MyTvSettingsScreen()
+        SettingsScreen()
     }
 }

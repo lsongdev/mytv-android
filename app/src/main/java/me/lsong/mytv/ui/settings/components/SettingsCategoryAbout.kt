@@ -2,19 +2,23 @@ package me.lsong.mytv.ui.settings.components
 
 import android.content.Context
 import android.content.pm.PackageInfo
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.foundation.lazy.list.TvLazyColumn
+import me.lsong.mytv.R
 import me.lsong.mytv.ui.components.LeanbackQrcode
 import me.lsong.mytv.ui.settings.MyTvSettingsViewModel
 import me.lsong.mytv.ui.theme.LeanbackTheme
@@ -38,8 +42,16 @@ fun LeanbackSettingsCategoryAbout(
         ) {
             item {
                 LeanbackSettingsCategoryListItem(
+                    leadingContent = {
+                        Image(
+                            painter = painterResource(id = R.mipmap.ic_launcher),
+                            contentDescription = "DuckTV",
+                            modifier = Modifier.size(40.dp)
+                        )
+                    },
                     headlineContent = Constants.APP_NAME,
                     trailingContent = packageInfo.versionName,
+                    supportingContent = packageInfo.packageName,
                 )
             }
 
