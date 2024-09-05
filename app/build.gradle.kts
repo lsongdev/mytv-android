@@ -20,10 +20,10 @@ android {
 
     defaultConfig {
         applicationId = "me.lsong.mytv"
-        minSdk = 21
+        minSdk = 31
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 4
+        versionName = "1.0.$versionCode"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

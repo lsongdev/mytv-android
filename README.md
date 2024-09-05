@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="./icon.png" alt="DuckTV Icon" width="200">
+  <img src="./app/src/main/res/drawable-xhdpi/ic_launcher.png" alt="DuckTV Icon" width="200">
   <br>DuckTV<br>
 </h1>
 
