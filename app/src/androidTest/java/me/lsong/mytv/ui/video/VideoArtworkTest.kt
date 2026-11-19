@@ -9,6 +9,9 @@ import me.lsong.mytv.domain.video.ProviderVideoRecord
 import me.lsong.mytv.domain.video.VideoWork
 
 import android.graphics.Bitmap
+import android.os.Build
+import androidx.compose.ui.graphics.Color
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toPixelMap
@@ -53,8 +56,19 @@ class VideoArtworkTest {
             })
             compose.setContent { TvTheme { VodArtwork(work, Modifier.size(110.dp, 165.dp).testTag("artwork")) } }
             compose.waitUntil(10_000) {
-                val pixels = compose.onNodeWithTag("artwork").captureToImage().toPixelMap()
-                val center = pixels[pixels.width / 2, pixels.height / 2]
+                val artwork = compose.onNodeWithTag("artwork")
+                val center = if (Build.VERSION.SDK_INT >= 26) {
+                    val pixels = artwork.captureToImage().toPixelMap()
+                    pixels[pixels.width / 2, pixels.height / 2]
+                } else {
+                    // Compose's Window PixelCopy overload requires API 26. Keep verifying
+                    // rendered pixels on Android 7 using the instrumentation screenshot API.
+                    val bounds = artwork.fetchSemanticsNode().boundsInWindow
+                    val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                        ?: return@waitUntil false
+                    try { Color(screenshot.getPixel(bounds.center.x.toInt(), bounds.center.y.toInt())) }
+                    finally { screenshot.recycle() }
+                }
                 center.red > .95f && center.green < .05f && center.blue < .05f
             }
         } finally { server.close(); worker.join(2_000) }
