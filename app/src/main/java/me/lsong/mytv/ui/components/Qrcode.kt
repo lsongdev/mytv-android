@@ -24,7 +24,7 @@ import io.github.alexzhirkevich.qrose.options.roundCorners
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 
 @Composable
-fun LeanbackQrcode(
+fun QrCode(
     modifier: Modifier = Modifier,
     text: String,
 ) {
@@ -54,7 +54,7 @@ fun LeanbackQrcode(
 }
 
 @Composable
-fun LeanbackQrcodeDialog(
+fun QrCodeDialog(
     modifier: Modifier = Modifier,
     text: String,
     description: String? = null,
@@ -68,7 +68,7 @@ fun LeanbackQrcodeDialog(
             onDismissRequest = onDismissRequest,
             confirmButton = { description?.let { Text(text = description) } },
             text = {
-                LeanbackQrcode(
+                QrCode(
                     text = text,
                     modifier = Modifier
                         .width(240.dp)

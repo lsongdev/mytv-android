@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name=".MenuPreviewActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.MyTV"
+            android:label="OhMyTV 菜单预览" />
+        <activity android:name=".SettingsPreviewActivity" android:exported="true"
+            android:screenOrientation="landscape" android:theme="@style/Theme.MyTV"
+            android:label="OhMyTV 设置" />
+    </application>
+</manifest>

@@ -16,13 +16,14 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "me.lsong.mytv"
-    compileSdk = 34
+    compileSdk = 36
+    buildToolsVersion = "35.0.0"
 
     defaultConfig {
         applicationId = "me.lsong.mytv"
-        minSdk = 31
+        minSdk = 24
         targetSdk = 34
-        versionCode = 4
+        versionCode = providers.gradleProperty("ciVersionCode").orNull?.toInt()?.let { 10000 + it } ?: 4
         versionName = "1.0.$versionCode"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -79,6 +80,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":media")) { exclude(group = "org.json", module = "json") }
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -93,10 +95,10 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
 
     // TV Compose
-    implementation(libs.androidx.tv.foundation)
     implementation(libs.androidx.tv.material)
 
     // 播放器
+    implementation("dev.jdtech.mpv:libmpv:1.0.0")
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.exoplayer.rtsp)

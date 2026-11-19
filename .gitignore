@@ -23,3 +23,8 @@ key.properties
 .kotlin/*
 app/debug/*
 *.apk
+**/build/
+
+# Signing credentials must stay outside version control.
+*.jks
+*.keystore

@@ -1,51 +1,52 @@
 package me.lsong.mytv
 
-import android.app.PictureInPictureParams
+import me.lsong.mytv.app.AppScreen
+import me.lsong.mytv.ui.theme.TvTheme
+
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Rational
 import android.view.WindowManager
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.IntRange
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.debounce
-import me.lsong.mytv.ui.MainScreen
-import me.lsong.mytv.ui.components.LeanbackPadding
-import me.lsong.mytv.ui.theme.LeanbackTheme
-import me.lsong.mytv.utils.HttpServer
-import me.lsong.mytv.utils.Settings
-import kotlin.system.exitProcess
+
+import me.lsong.mytv.ui.components.ScreenPadding
+
+import me.lsong.mytv.ui.input.BackKeyHandler
+import android.view.KeyEvent
 
 class MainActivity : ComponentActivity() {
+    private val backKeys by lazy {
+        BackKeyHandler(
+            onShortPress = { onBackPressedDispatcher.onBackPressed() },
+            onLongPress = { finishAndRemoveTask() },
+        )
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean =
+        backKeys.dispatch(event) || super.onKeyDown(keyCode, event)
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean =
+        backKeys.dispatch(event) || super.onKeyUp(keyCode, event)
+
+    override fun onPause() {
+        backKeys.cancel()
+        super.onPause()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -60,18 +61,8 @@ class MainActivity : ComponentActivity() {
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
             // 屏幕常亮
-            val doubleBackPressedExitState = rememberLeanbackDoubleBackPressedExitState()
-            BackHandler {
-                if (doubleBackPressedExitState.allowExit) {
-                    finish()
-                    exitProcess(0)
-                } else {
-                    doubleBackPressedExitState.backPress()
-                    Toast.makeText(applicationContext, "再按一次退出", Toast.LENGTH_SHORT).show()
-                }
-            }
-            LeanbackTheme {
-                MainScreen()
+            TvTheme {
+                AppScreen()
             }
         }
 
@@ -82,7 +73,6 @@ class MainActivity : ComponentActivity() {
             // Force landscape mode on non-TV devices
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
         }
-        HttpServer.start(applicationContext)
     }
 
     private fun isTVDevice(): Boolean {
@@ -92,7 +82,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        // if (!Settings.uiPipMode) return
+        // if (!AppPreferences.uiPipMode) return
         // enterPictureInPictureMode(
         //     PictureInPictureParams.Builder()
         //         .setAspectRatio(Rational(16, 9))
@@ -102,45 +92,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * 退出应用二次确认
- */
-class LeanbackDoubleBackPressedExitState internal constructor(
-    @IntRange(from = 0)
-    private val resetSeconds: Int,
-) {
-    private var _allowExit by mutableStateOf(false)
-    val allowExit get() = _allowExit
-
-    fun backPress() {
-        _allowExit = true
-        channel.trySend(resetSeconds)
-    }
-
-    private val channel = Channel<Int>(Channel.CONFLATED)
-
-    @OptIn(FlowPreview::class)
-    suspend fun observe() {
-        channel.consumeAsFlow()
-            .debounce { it.toLong() * 1000 }
-            .collect { _allowExit = false }
-    }
-}
-
-/**
- * 退出应用二次确认状态
- */
-@Composable
-fun rememberLeanbackDoubleBackPressedExitState(@IntRange(from = 0) resetSeconds: Int = 2) =
-    remember { LeanbackDoubleBackPressedExitState(resetSeconds = resetSeconds) }
-        .also { LaunchedEffect(it) { it.observe() } }
-
 val LeanbackParentPadding = PaddingValues(vertical = 12.dp, horizontal = 24.dp)
 
 @Composable
-fun rememberLeanbackChildPadding(direction: LayoutDirection = LocalLayoutDirection.current) =
+fun rememberScreenPadding(direction: LayoutDirection = LocalLayoutDirection.current) =
     remember {
-        LeanbackPadding(
+        ScreenPadding(
             start = LeanbackParentPadding.calculateStartPadding(direction) + 8.dp,
             top = LeanbackParentPadding.calculateTopPadding(),
             end = LeanbackParentPadding.calculateEndPadding(direction) + 8.dp,

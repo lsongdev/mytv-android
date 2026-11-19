@@ -19,6 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "DuckTV"
-include(":app")
- 
+rootProject.name = "OhMyTV"
+include(":app", ":media")

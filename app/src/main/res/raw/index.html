@@ -1,85 +1,35 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DuckTV</title>
-  <style>
-    @import url("https://lsong.org/css/stylesheet.css");
-    @import url("https://lsong.org/stylesheets/form.css");
-    @import url("https://lsong.org/stylesheets/input.css");
-    @import url("https://lsong.org/stylesheets/button.css");
-
-    textarea.input-block {
-      min-width: 100%;
-      max-width: 100%;
-    }
-  </style>
-</head>
-
-<body>
-  <div class="container container-mobile">
-    <header>
-      <h1>DuckTV</h1>
-    </header>
-    <main>
-      <form id="settingsForm" class="form">
-        <h2>Settings</h2>
-        <div class="form-field">
-          <label>IPTV Source URLs</label>
-          <textarea class="input input-block" id="iptvSourceUrls" placeholder="每行一个URL"></textarea>
-        </div>
-        <div class="form-field">
-          <label>EPG URLs</label>
-          <textarea class="input input-block" id="epgUrls" placeholder="每行一个URL"></textarea>
-        </div>
-        <div class="form-field">
-          <button type="submit" class="button">保存设置</button>
-        </div>
-      </form>
-    </main>
-  </div>
-  <script type="module">
-    const ready = new Promise(done => window.addEventListener('load', done));
-    await ready;
-
-    const load = async () => {
-      const response = await fetch('/api/settings');
-      const settings = await response.json();
-      return settings;
-    };
-
-    const settings = await load();
-    document.getElementById('epgUrls').value = settings.epgUrls.join('\n');
-    document.getElementById('iptvSourceUrls').value = settings.iptvSourceUrls.join('\n');
-    const save = async (data) => {
-      try {
-        await fetch('/api/settings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        });
-        alert('设置已保存');
-        window.location.reload();
-      } catch (error) {
-        alert('保存失败:' + error);
-      }
-    };
-    // 提交表单时保存设置
-    document.getElementById('settingsForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      const epgUrls = document.getElementById('epgUrls').value.split('\n').filter(url => url.trim() !== '');
-      const iptvSourceUrls = document.getElementById('iptvSourceUrls').value.split('\n').filter(url => url.trim() !== '');
-      const data = {
-        epgUrls: epgUrls,
-        iptvSourceUrls: iptvSourceUrls
-      };
-      save(data);
-    });
-  </script>
-</body>
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OhMyTV 设置</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#11151d;color:#e5e9f0}*{box-sizing:border-box}body{margin:0}main{max-width:880px;margin:auto;padding:24px}header{margin-bottom:32px}h1{font-size:28px}h2{font-size:20px}p,small{color:#a8b3c5}section{margin:28px 0}button,input,textarea{font:inherit}button{border:1px solid #536177;border-radius:8px;background:#263447;color:#edf3ff;padding:10px 16px;cursor:pointer}button.primary{background:#b6ceff;color:#162a49;border:0}input[type=text],input[type=url],textarea{width:100%;border:1px solid #536177;border-radius:8px;background:#11151d;color:inherit;padding:12px}label{display:block;margin:8px 0}.card{border:1px solid #303a4a;border-radius:12px;background:#1a202b;padding:18px;margin:12px 0}.row{display:flex;align-items:center;gap:12px}.between{justify-content:space-between}.fields{display:grid;grid-template-columns:1fr 2fr;gap:16px}.actions{display:flex;gap:10px;margin-top:16px}.status{min-height:24px;color:#b6ceff}textarea{min-height:100px}.delete{color:#ffb4ab}input[type=checkbox]{width:18px;height:18px;vertical-align:middle}@media(max-width:600px){.fields{grid-template-columns:1fr}main{padding:16px}}
+</style>
+<main>
+<header><h1>OhMyTV 设置</h1><p>在手机上管理播放源，保存后电视会自动更新。</p><div id="status" role="status" class="status"></div></header>
+<section><div class="row between"><h2>直播</h2><button id="add-iptv">＋ 添加源</button></div><small>M3U 频道列表地址</small><div id="iptv"></div></section>
+<section><div class="row between"><h2>影视</h2><button id="add-vod">＋ 添加源</button></div><small>AppleCMS V10 接口地址</small><div id="vod"></div></section>
+<section class="card"><h2>EPG 节目单</h2><label for="epg">节目单地址，每行一个</label><textarea id="epg" placeholder="https://example.com/epg.xml"></textarea><div class="actions"><button id="save-epg">保存节目单</button></div></section>
+</main>
+<script type="module">
+let sources=[];
+const status=document.querySelector('#status');
+const say=(text,bad=false)=>{status.textContent=text;status.style.color=bad?'#ffb4ab':'#b6ceff'};
+const request=async(data)=>{const r=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await r.json();if(!r.ok)throw Error(result.error||'保存失败');return result};
+const save=async(next)=>{try{await request({sources:next});sources=next;render();say('设置已保存，电视正在更新播放源。')}catch(e){say(e.message,true)}};
+const make=(tag,text)=>{const e=document.createElement(tag);if(text)e.textContent=text;return e};
+function editor(source,isNew=false){
+ const card=make('div');card.className='card';const fields=make('div');fields.className='fields';
+ const nameField=make('div'),nameLabel=make('label','源名称'),name=make('input');name.type='text';name.value=source.name;name.placeholder=source.type==='IPTV'?'例如：家庭直播':'例如：电影资源';nameField.append(nameLabel,name);
+ const urlField=make('div'),urlLabel=make('label','接口地址'),url=make('input');url.type='url';url.value=source.url;url.placeholder='http:// 或 https://';urlField.append(urlLabel,url);fields.append(nameField,urlField);card.append(fields);
+ const enabledLabel=make('label'),enabled=make('input');enabled.type='checkbox';enabled.checked=source.isEnabled!==false;enabledLabel.append(enabled,document.createTextNode(' 启用此源'));card.append(enabledLabel);
+ const actions=make('div');actions.className='actions';const saveButton=make('button','保存');saveButton.className='primary';saveButton.onclick=()=>{const updated={...source,name:name.value.trim(),url:url.value.trim(),isEnabled:enabled.checked};if(!updated.name||!updated.url){say('请填写源名称和接口地址',true);return}save(isNew?[...sources,updated]:sources.map(s=>s.id===source.id?updated:s))};
+ const remove=make('button',isNew?'取消':'删除');remove.className='delete';remove.onclick=()=>{if(isNew){card.remove();return}if(confirm(`确定删除「${source.name}」？`))save(sources.filter(s=>s.id!==source.id))};actions.append(saveButton,remove);card.append(actions);return card;
+}
+function render(){for(const type of ['IPTV','VOD']){const host=document.querySelector(type==='IPTV'?'#iptv':'#vod');host.replaceChildren();const selected=sources.filter(s=>s.type===type);if(!selected.length)host.append(make('p','还没有配置播放源'));for(const source of selected)host.append(editor(source))}}
+for(const type of ['IPTV','VOD'])document.querySelector(type==='IPTV'?'#add-iptv':'#add-vod').onclick=()=>{const id=globalThis.crypto?.randomUUID?.()||`source-${Date.now()}-${Math.random().toString(16).slice(2)}`;const host=document.querySelector(type==='IPTV'?'#iptv':'#vod');const card=editor({id,name:'',url:'',type,isEnabled:true},true);host.append(card);card.querySelector('input').focus();card.scrollIntoView({behavior:'smooth',block:'center'})};
+document.querySelector('#save-epg').onclick=async()=>{try{await request({epgUrls:document.querySelector('#epg').value.split('\n').map(s=>s.trim()).filter(Boolean)});say('节目单地址已保存。')}catch(e){say(e.message,true)}};
+try{const r=await fetch('/api/settings');if(!r.ok)throw Error('无法读取设置');const data=await r.json();sources=data.sources;document.querySelector('#epg').value=data.epgUrls.join('\n');render()}catch(e){say(e.message,true)}
+</script>
 </html>
