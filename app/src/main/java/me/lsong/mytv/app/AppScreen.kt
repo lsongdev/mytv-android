@@ -81,6 +81,7 @@ fun AppContent(
 
     var restoringPlayback by remember { mutableStateOf(true) }
     var drawerVisible by remember { mutableStateOf(liveCatalog.channels.isEmpty()) }
+    LaunchedEffect(drawerVisible) { if (drawerVisible) videoLibrary.menuOpened() }
     var channelDetailsVisible by remember { mutableStateOf(false) }
     var controlsVisible by remember { mutableStateOf(false) }
     val showControls: () -> Unit = {
@@ -101,7 +102,9 @@ fun AppContent(
     }
 
     val drawerState = remember(liveCatalog) {
-        ContentDrawerState(playback.currentChannel.takeIf { it.resources.map { it.uri }.isNotEmpty() })
+        ContentDrawerState(playback.currentChannel.takeIf { it.resources.map { it.uri }.isNotEmpty() }).apply {
+            videoNavigation = videoLibrary.state.value.categoryId ?: "latest"
+        }
     }
 
     LaunchedEffect(homeRequest, restoringPlayback) {

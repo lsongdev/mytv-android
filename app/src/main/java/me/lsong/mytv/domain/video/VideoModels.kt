@@ -37,3 +37,8 @@ data class VideoPlaybackSelection(val details: VideoDetails, val partId: String,
     val resource get() = part.resources.first { it.id == resourceId }
     val title get() = "${details.work.title} · ${part.title}"
 }
+
+/** Provider-local categories retain hierarchy independently of the browse taxonomy. */
+data class ProviderVideoCategory(val ref: ProviderRecordRef, val title: String, val parentId: String? = null)
+data class VideoCategory(val id: String, val title: String, val records: List<ProviderVideoCategory>)
+data class VideoCatalogQuery(val keyword: String = "", val page: Int = 1, val categoryId: String? = null)

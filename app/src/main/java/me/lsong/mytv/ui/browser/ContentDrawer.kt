@@ -51,7 +51,6 @@ class ContentDrawerState(playingChannel: LiveChannel?) {
     var section by mutableStateOf(Section.LIVE)
     var liveScheduleId by mutableStateOf<String?>(null)
     var videoNavigation by mutableStateOf("latest")
-    var videoKind by mutableStateOf<VideoKind?>(null)
     var videoSearch by mutableStateOf(false)
     var videoWorkId by mutableStateOf<String?>(null)
     var applicationDetailsId by mutableStateOf<String?>(null)
@@ -84,8 +83,15 @@ fun ContentDrawer(
     nowMs: Long = System.currentTimeMillis(),
 ) {
     val vodState by (videoLibrary?.state ?: remember { kotlinx.coroutines.flow.MutableStateFlow(VideoCatalogState()) }).collectAsState()
+    val vodCategories by (videoLibrary?.categories ?: remember { kotlinx.coroutines.flow.MutableStateFlow(VideoCategoriesState()) }).collectAsState()
     val vodSources by (videoLibrary?.configured ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyList()) }).collectAsState()
-    LaunchedEffect(state.section) { if (state.section == Section.VIDEOS) videoLibrary?.activate() }
+    LaunchedEffect(vodCategories, vodState.categoryId) {
+        if (!vodCategories.loading && state.videoNavigation.startsWith("category:") &&
+            vodCategories.groups.none { it.id == state.videoNavigation }) {
+            state.videoNavigation = "latest"
+            if (state.section == Section.VIDEOS && state.column == 1) state.enterColumn(1)
+        }
+    }
     BackHandler(onBack = onClose)
     val settingsFocusRequester = remember { FocusRequester() }
     val settingsContentFocus = remember { FocusRequester() }
@@ -247,25 +253,35 @@ fun ContentDrawer(
                         }
                     } else if (state.section == Section.VIDEOS) {
                         Column(Modifier.weight(160f).fillMaxHeight()) {
-                            ColumnHeading("影视分类", "")
+                            ColumnHeading("影视分类", if (vodCategories.loading) "加载中" else "${vodCategories.groups.size}")
                             val categories = listOf(BrowseEntry.Category(BrowseCategory("search", "搜索全部源")), BrowseEntry.Category(BrowseCategory("latest", if (vodState.query.isBlank()) "最近更新" else "搜索结果"))) +
-                                VideoKind.entries.map { kind -> BrowseEntry.Category(BrowseCategory("kind:${kind.name}", kind.title)) } +
+                                vodCategories.groups.map { category -> BrowseEntry.Category(BrowseCategory(category.id, category.title, "${category.records.map { it.ref.providerId }.distinct().size} 个源")) } +
                                 listOf(BrowseEntry.Category(BrowseCategory("more", "加载更多")), BrowseEntry.Category(BrowseCategory("retry", "重试失败源")), BrowseEntry.Category(BrowseCategory("refresh", "刷新影片")))
                             BrowseList(
                                 entries = categories, selectedId = state.videoNavigation, contextKey = "vod-categories", active = state.column == 1, focusRequest = state.focusRequest,
-                                onFocused = { id ->
+                                onFocused = categoryFocused@ { id ->
+                                    // Removing a focused category can briefly focus a neighbour.
+                                    // Let the recovery effect restore Latest before accepting it.
+                                    if (state.videoNavigation.startsWith("category:") &&
+                                        vodCategories.groups.none { it.id == state.videoNavigation }) return@categoryFocused
                                     if (vodState.details != null) videoLibrary?.closeDetails()
                                     state.videoNavigation = id
                                     state.videoSearch = id == "search"
-                                    if (id == "latest") state.videoKind = null
-                                    if (id.startsWith("kind:")) state.videoKind = VideoKind.valueOf(id.substringAfter(':'))
+                                    if (id == "latest") videoLibrary?.selectCategory(null)
+                                    if (id.startsWith("category:")) {
+                                        if (vodState.categoryId != id) state.videoWorkId = null
+                                        videoLibrary?.selectCategory(id)
+                                    }
                                 },
                                 onSelected = { id ->
                                     if (vodState.details != null) videoLibrary?.closeDetails()
                                     state.videoNavigation = id
                                     state.videoSearch = id == "search"
-                                    if (id == "latest") state.videoKind = null
-                                    if (id.startsWith("kind:")) state.videoKind = VideoKind.valueOf(id.substringAfter(':'))
+                                    if (id == "latest") videoLibrary?.selectCategory(null)
+                                    if (id.startsWith("category:")) {
+                                        if (vodState.categoryId != id) state.videoWorkId = null
+                                        videoLibrary?.selectCategory(id)
+                                    }
                                     when (id) {
                                         "more" -> videoLibrary?.loadMore()
                                         "retry" -> videoLibrary?.retryFailed()
@@ -279,11 +295,13 @@ fun ContentDrawer(
                             when {
                                 vodState.details != null && videoLibrary != null -> VodDetailsPanel(vodState, state.column == 2, state.focusRequest, playingVideo, onPlayVideo, videoLibrary, { state.enterColumn(1) })
                                 state.videoSearch -> VodSearchPanel(vodState.query, state.column == 2, state.focusRequest) { query ->
-                                    state.videoSearch = false; state.videoKind = null; state.videoNavigation = "latest"; state.videoWorkId = null
-                                    videoLibrary?.refresh(query); state.enterColumn(2)
+                                    state.videoSearch = false; state.videoNavigation = "latest"; state.videoWorkId = null
+                                    videoLibrary?.search(query); state.enterColumn(2)
                                 }
-                                else -> VodPosterGrid(vodState, state.videoKind, state.videoWorkId, state.column == 2, state.focusRequest,
-                                    { state.videoWorkId = it }, { videoLibrary?.open(it); state.enterColumn(2) }, { state.enterColumn(1) })
+                                else -> VodPosterGrid(vodState, state.videoWorkId, state.column == 2, state.focusRequest,
+                                    filters = vodCategories.groups.firstOrNull { it.id == vodState.categoryId }?.filters.orEmpty(),
+                                    onFilter = { videoLibrary?.selectFilter(it) }, onLoadMore = { videoLibrary?.loadMore() },
+                                    onFocused = { state.videoWorkId = it }, onOpen = { videoLibrary?.open(it); state.enterColumn(2) }, onLeft = { state.enterColumn(1) })
                             }
                         }
                     } else {

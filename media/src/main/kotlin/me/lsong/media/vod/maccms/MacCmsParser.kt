@@ -15,6 +15,20 @@ object MacCmsParser {
         }, root.text("page").toIntOrNull() ?: 1, root.text("pagecount").toIntOrNull() ?: 1)
     }
 
+    fun categories(text: String): List<MacCmsCategory> {
+        val root = Json.parseToJsonElement(text).jsonObject
+        val code = root.text("code")
+        require(code.isEmpty() || code == "1") { "接口返回失败" }
+        val rows = root["class"] as? JsonArray ?: throw IOException("接口未返回分类列表")
+        return rows.mapNotNull { element ->
+            val row = element as? JsonObject ?: return@mapNotNull null
+            val id = row.text("type_id").trim()
+            val title = clean(row.text("type_name"))
+            if (id.isBlank() || title.isBlank()) null else MacCmsCategory(id, title,
+                row.text("type_pid").trim().takeIf { it.isNotEmpty() && it != "0" && it != id })
+        }.distinctBy { it.id }
+    }
+
     private fun item(baseUri: String, row: JsonObject, includeLines: Boolean): MacCmsVideo {
         val id = row.text("vod_id"); val title = clean(row.text("vod_name"))
         require(id.isNotBlank() && title.isNotBlank())

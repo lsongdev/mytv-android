@@ -1,10 +1,13 @@
 package me.lsong.mytv.ui.video
 
+import me.lsong.mytv.data.video.VideoCatalogRepository
 import me.lsong.mytv.ui.navigation.Section
 
 import me.lsong.mytv.domain.live.LiveCatalog
 import me.lsong.mytv.ui.theme.TvTheme
 
+import me.lsong.mytv.domain.video.VideoCatalogQuery
+import me.lsong.mytv.domain.video.ProviderVideoCategory
 import me.lsong.mytv.domain.video.VideoCatalogProvider
 
 import me.lsong.mytv.domain.video.ProviderPlaybackLine
@@ -56,12 +59,16 @@ class VideoIntegrationTest {
         override fun replace(providers: List<ProviderConfig>) { this.providers.value = providers }
     }
     private class Client(private val hideBFromLatest: Boolean = false, private val ignoreBQuery: Boolean = false) : VideoCatalogProvider {
-        val requested = mutableListOf<String>()
-        override suspend fun page(source: ProviderConfig, query: String, page: Int, force: Boolean): VideoPage {
-            requested += source.id
-            delay(if (query == "old") 100 else 5)
+        val requested = java.util.concurrent.CopyOnWriteArrayList<String>()
+        override suspend fun categories(source: ProviderConfig, force: Boolean): List<ProviderVideoCategory> {
             if (source.id == "failed") error("offline")
-            return VideoPage(listOf(item(source).copy(title = (if (ignoreBQuery && source.id == "b") "无关影片" else query).ifBlank { if (hideBFromLatest && source.id == "b") "另一部剧" else "聚合测试剧" })), page, 1)
+            return listOf(ProviderVideoCategory(ProviderRecordRef(source.id,if (source.id == "a") "10" else "90"),"源内分类"))
+        }
+        override suspend fun page(source: ProviderConfig, query: VideoCatalogQuery, force: Boolean): VideoPage {
+            requested += source.id
+            delay(if (query.keyword == "old") 100 else 5)
+            if (source.id == "failed") error("offline")
+            return VideoPage(listOf(item(source).copy(title = (if (ignoreBQuery && source.id == "b") "无关影片" else query.keyword).ifBlank { if (hideBFromLatest && source.id == "b") "另一部剧" else "聚合测试剧" })), query.page, 1)
         }
         override suspend fun details(source: ProviderConfig, remoteId: String): ProviderVideoRecord {
             delay(5)
@@ -74,29 +81,27 @@ class VideoIntegrationTest {
     }
     private fun createModel(client: Client = Client()): VideoLibraryViewModel {
         lateinit var model: VideoLibraryViewModel
-        compose.runOnIdle { model = VideoLibraryViewModel(Repository(), client, InMemoryCatalogIdentityStore(), ResourceProbeRepository(measure = { ResourceProbe.Measured(240, 2 * 1024 * 1024) })) }
+        compose.runOnIdle { model = VideoLibraryViewModel(VideoCatalogRepository(Repository(), client, InMemoryCatalogIdentityStore()), ResourceProbeRepository(measure = { ResourceProbe.Measured(240, 2 * 1024 * 1024) })) }
         return model
     }
     private fun click(tag: String) { compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.OnClick) { it() }; compose.waitForIdle() }
 
     @Test fun failedAndDisabledProvidersDoNotBlockMergedResults() {
         val client = Client(); val model = createModel(client)
-        compose.runOnIdle { model.activate() }
         compose.waitUntil(10_000) { model.state.value.providers.size == 3 && !model.state.value.loading }
         assertEquals(1, model.state.value.works.size)
         assertEquals(2, model.state.value.works.single().providerCount)
         assertEquals(1, model.state.value.providers.count { it.error != null })
         assertFalse(client.requested.contains("disabled"))
-        compose.runOnIdle { model.refresh("old"); model.refresh("new") }
+        compose.runOnIdle { model.search("old"); model.search("new") }
         compose.waitUntil(10_000) { !model.state.value.loading && model.state.value.works.firstOrNull()?.title == "new" }
         assertTrue(model.state.value.works.all { it.title == "new" })
     }
 
     @Test fun searchExcludesUnrelatedResultsFromAProviderThatIgnoresTheQuery() {
         val model = createModel(Client(ignoreBQuery = true))
-        compose.runOnIdle { model.activate() }
         compose.waitUntil(10_000) { model.state.value.providers.size == 3 && !model.state.value.loading }
-        compose.runOnIdle { model.refresh("目标影片") }
+        compose.runOnIdle { model.search("目标影片") }
         compose.waitUntil(10_000) { !model.state.value.loading }
         assertEquals(listOf("目标影片"), model.state.value.works.map { it.title })
         assertEquals(1, model.state.value.works.single().providerCount)
@@ -104,7 +109,6 @@ class VideoIntegrationTest {
 
     @Test fun openingAWorkFindsMatchingResourcesOutsideTheOtherProvidersLatestPage() {
         val model = createModel(Client(hideBFromLatest = true))
-        compose.runOnIdle { model.activate() }
         compose.waitUntil(10_000) { model.state.value.providers.size == 3 && !model.state.value.loading }
         val work = model.state.value.works.first { it.title == "聚合测试剧" }
         assertEquals(1, work.providerCount)

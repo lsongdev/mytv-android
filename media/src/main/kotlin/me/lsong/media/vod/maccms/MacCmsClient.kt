@@ -15,11 +15,21 @@ class MacCmsClient(private val http: MediaHttpClient = MediaHttpClient()) {
             .setQueryParameter("pg", query.page.toString())
             .removeAllQueryParameters("ids")
             .apply {
+                if (query.categoryId.isNullOrBlank()) removeAllQueryParameters("t")
+                else setQueryParameter("t", query.categoryId)
                 if (query.keyword.isBlank()) removeAllQueryParameters("wd")
                 else setQueryParameter("wd", query.keyword)
             }.build()
         val text = http.getText(endpoint.copy(uri = uri.toString()))
         return withContext(Dispatchers.Default) { MacCmsParser.page(endpoint.uri, text) }
+    }
+
+    suspend fun categories(endpoint: MediaEndpoint): List<MacCmsCategory> {
+        val uri = endpoint.uri.toHttpUrl().newBuilder().setQueryParameter("ac", "list")
+            .removeAllQueryParameters("t").removeAllQueryParameters("wd")
+            .removeAllQueryParameters("ids").removeAllQueryParameters("pg").build()
+        val text = http.getText(endpoint.copy(uri = uri.toString()))
+        return withContext(Dispatchers.Default) { MacCmsParser.categories(text) }
     }
 
     suspend fun details(endpoint: MediaEndpoint, remoteId: String): MacCmsVideo {
@@ -28,6 +38,7 @@ class MacCmsClient(private val http: MediaHttpClient = MediaHttpClient()) {
             .setQueryParameter("ac", "detail")
             .setQueryParameter("ids", remoteId)
             .removeAllQueryParameters("wd")
+            .removeAllQueryParameters("t")
             .removeAllQueryParameters("pg")
             .build()
         val text = http.getText(endpoint.copy(uri = uri.toString()))

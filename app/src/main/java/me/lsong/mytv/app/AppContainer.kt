@@ -1,6 +1,7 @@
 package me.lsong.mytv.app
 
 import android.content.Context
+import coil.imageLoader
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import me.lsong.mytv.data.live.LiveCatalogRepository
@@ -37,14 +38,22 @@ object AppContainer {
         providerConfigs = PreferencesProviderConfigRepository(preferences)
         identities = PreferencesCatalogIdentityStore(preferences)
     }
+    val danmakuRepository by lazy {
+        me.lsong.mytv.data.danmaku.DanmakuRepository(java.io.File(applicationContext.cacheDir, "danmaku-v1"))
+    }
+    val cacheManager by lazy {
+        me.lsong.mytv.data.cache.AppCacheManager(providerStorage, danmakuRepository, applicationContext.imageLoader)
+    }
     private lateinit var applicationContext: Context
     private lateinit var danmakuPreferences: DanmakuPreferenceStore
     val danmakuViewModelFactory = viewModelFactory {
         initializer { me.lsong.mytv.ui.danmaku.DanmakuViewModel(
-            me.lsong.mytv.data.danmaku.DanmakuRepository(java.io.File(applicationContext.cacheDir,"danmaku-v1")), danmakuPreferences) }
+            danmakuRepository, danmakuPreferences) }
     }
     fun liveCatalog() = LiveCatalogRepository(provider = me.lsong.mytv.data.providers.m3u.M3uLiveProviderAdapter(storage = providerStorage), identities = identities)
+    val videoCatalog by lazy { me.lsong.mytv.data.video.VideoCatalogRepository(
+        providerConfigs,MacCmsVideoProvider(storage = providerStorage),identities) }
     val videoViewModelFactory = viewModelFactory {
-        initializer { VideoLibraryViewModel(providerConfigs, MacCmsVideoProvider(storage = providerStorage), identities) }
+        initializer { VideoLibraryViewModel(videoCatalog) }
     }
 }

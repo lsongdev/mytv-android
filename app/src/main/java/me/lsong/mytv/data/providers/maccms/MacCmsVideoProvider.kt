@@ -10,11 +10,26 @@ import me.lsong.mytv.domain.playback.*
 import me.lsong.mytv.domain.provider.*
 
 class MacCmsVideoProvider(private val client: MacCmsClient = MacCmsClient(), private val storage: ProviderStorage? = null) : VideoCatalogProvider {
-    override suspend fun cachedPage(source: ProviderConfig, query: String, page: Int): VideoPage? =
-        storage?.cached(source,"page:$query:$page",MacCmsPage.serializer())?.value?.let { map(source,it) }
-    override suspend fun page(source: ProviderConfig, query: String, page: Int, force: Boolean): VideoPage {
-        val result = storage?.get(source,"page:$query:$page",MacCmsPage.serializer(),force = force) { client.page(MediaEndpoint(source.url),MacCmsQuery(query,page)) }
-            ?: client.page(MediaEndpoint(source.url),MacCmsQuery(query,page))
+    // Unsupported category metadata must not back off working catalogue requests.
+    private fun categoryProvider(source: ProviderConfig) = source.copy(id = "${source.id}:categories")
+    private fun pageKey(query: VideoCatalogQuery) = "page:v2:${query.keyword.length}:${query.keyword}:${query.page}:${query.categoryId.orEmpty()}"
+    private fun mapCategories(source: ProviderConfig, rows: List<MacCmsCategory>) = rows.map {
+        ProviderVideoCategory(ProviderRecordRef(source.id,it.id),it.title,it.parentId)
+    }
+    override suspend fun cachedCategories(source: ProviderConfig): List<ProviderVideoCategory>? =
+        storage?.cached(categoryProvider(source),"categories",kotlinx.serialization.builtins.ListSerializer(MacCmsCategory.serializer()))?.value?.let { mapCategories(source,it) }
+    override suspend fun categories(source: ProviderConfig, force: Boolean): List<ProviderVideoCategory> {
+        val rows = storage?.get(categoryProvider(source),"categories",kotlinx.serialization.builtins.ListSerializer(MacCmsCategory.serializer()),freshFor = 6 * 3600_000L,force = force) {
+            client.categories(MediaEndpoint(source.url))
+        } ?: client.categories(MediaEndpoint(source.url))
+        return mapCategories(source,rows)
+    }
+    override suspend fun cachedPage(source: ProviderConfig, query: VideoCatalogQuery): VideoPage? =
+        storage?.cached(source,pageKey(query),MacCmsPage.serializer())?.value?.let { map(source,it) }
+    override suspend fun page(source: ProviderConfig, query: VideoCatalogQuery, force: Boolean): VideoPage {
+        val request = MacCmsQuery(query.keyword,query.page,query.categoryId)
+        val result = storage?.get(source,pageKey(query),MacCmsPage.serializer(),force = force) { client.page(MediaEndpoint(source.url),request) }
+            ?: client.page(MediaEndpoint(source.url),request)
         return map(source,result)
     }
     private suspend fun map(source: ProviderConfig, result: MacCmsPage): VideoPage = withContext(Dispatchers.Default) {

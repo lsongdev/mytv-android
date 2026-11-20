@@ -6,9 +6,49 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import me.lsong.mytv.app.AppContainer
+import me.lsong.mytv.data.cache.CacheKind
+import me.lsong.mytv.data.cache.CacheSize
 import me.lsong.mytv.data.preferences.AppPreferences
 
 class SettingsViewModel : ViewModel() {
+    var cacheSize by mutableStateOf<CacheSize?>(null)
+        private set
+    var cacheBusy by mutableStateOf(false)
+        private set
+    var cacheMessage by mutableStateOf<String?>(null)
+        private set
+
+    fun refreshCacheSize() = cacheOperation {
+        cacheSize = AppContainer.cacheManager.size()
+    }
+
+    fun clearCache(kind: CacheKind) = cacheOperation {
+        cacheSize = AppContainer.cacheManager.clear(kind)
+        cacheMessage = if (kind == CacheKind.DATA) "数据缓存已清除" else "图片缓存已清除"
+    }
+
+    private fun cacheOperation(action: suspend () -> Unit) {
+        if (cacheBusy) return
+        cacheBusy = true
+        cacheMessage = null
+        viewModelScope.launch {
+            try {
+                action()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                cacheSize = null
+                cacheMessage = "缓存操作失败，请重试"
+            } finally {
+                cacheBusy = false
+            }
+        }
+    }
+
 
     private var _debugShowFps by mutableStateOf(AppPreferences.debugShowFps)
     var debugShowFps: Boolean

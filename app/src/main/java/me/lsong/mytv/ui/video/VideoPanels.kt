@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -28,6 +29,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -46,43 +48,90 @@ import androidx.tv.material3.*
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import me.lsong.mytv.domain.video.*
+import me.lsong.mytv.ui.focus.placedFocusTarget
+import me.lsong.mytv.ui.focus.PlacedFocusTargets
 import me.lsong.mytv.ui.focus.prepareFocusAt
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun VodPosterGrid(
-    state: VideoCatalogState, kind: VideoKind?, selectedId: String?, active: Boolean, request: Int,
+    state: VideoCatalogState, selectedId: String?, active: Boolean, request: Int,
+    filters: List<VideoCategory>, onFilter: (String?) -> Unit, onLoadMore: () -> Unit,
     onFocused: (String) -> Unit, onOpen: (VideoWork) -> Unit, onLeft: () -> Unit,
 ) {
-    val works = state.works.filter { kind == null || it.item.kind == kind }
+    val works = state.works
     val selectedIndex = works.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
     val target = remember { FocusRequester() }
-    val grid = rememberLazyGridState()
+    val grid = key(state.categoryId,state.filterId,state.query) { rememberLazyGridState() }
+    val footerTarget = remember { FocusRequester() }
+    val placedCards = remember { PlacedFocusTargets() }
+    var filterRequest by remember(state.categoryId) { mutableIntStateOf(0) }
+    var gridRequest by remember { mutableIntStateOf(0) }
+    var gridDestination by remember(state.categoryId) { mutableStateOf(false) }
+    fun focusGrid() { gridDestination = true; gridRequest++ }
+    fun focusFilters() { gridDestination = false; filterRequest++ }
     val focusPadding = with(LocalDensity.current) { 12.dp.toPx() }
     val scrollPolicy = remember(focusPadding) { PaddedEdgeBringIntoViewSpec(focusPadding) }
-    LaunchedEffect(active, request, kind, state.query, works.isEmpty()) {
+    LaunchedEffect(active, request, state.categoryId) {
         if (active) {
+            if (filters.isNotEmpty() && works.none { it.id == selectedId }) focusFilters() else focusGrid()
+        }
+    }
+    // Cancel obsolete scroll/frame work when leaving the column or changing
+    // category/filter. The requester belongs to the persistent content group,
+    // never to a card that can disappear between these suspension points.
+    LaunchedEffect(active,state.categoryId,state.filterId,works.isEmpty(),gridDestination,gridRequest) {
+        if (active && gridDestination) {
             if (works.isNotEmpty()) grid.prepareFocusAt(selectedIndex)
             withFrameNanos { }
-            target.requestFocus()
+            val id = selectedId?.takeIf { selected -> works.any { it.id == selected } } ?: works.firstOrNull()?.id
+            (placedCards.requester(id) ?: target).requestFocus()
         }
     }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(if (state.query.isBlank()) "${kind?.title ?: "最近更新"} · ${works.size} 部" else "“${state.query}” · ${works.size} 部", style = MaterialTheme.typography.titleMedium)
-        val finished = state.providers.count { !it.loading }
-        val failed = state.providers.count { it.error != null }
+        Row(Modifier.fillMaxWidth().testTag("vod-grid-header"),verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(if (state.query.isBlank()) "${state.categoryTitle ?: "最近更新"} · ${works.size} 部" else "“${state.query}” · ${works.size} 部",
+                modifier = (if (filters.isEmpty()) Modifier.weight(1f) else Modifier.widthIn(max = 160.dp)).testTag("vod-grid-heading"),
+                style = MaterialTheme.typography.titleMedium,maxLines = 1,overflow = TextOverflow.Ellipsis)
+            if (filters.isNotEmpty()) key(state.categoryId) {
+                VideoCategoryFilters(filters,state.filterId,filterRequest,modifier = Modifier.weight(1f),
+                    onSelect = { gridDestination = false; onFilter(it) },onDown = ::focusGrid,onLeft = onLeft)
+            }
+        }
+        val sources = state.providers.groupBy { it.source.id }
+        val finished = sources.count { (_, cursors) -> cursors.any { it.page > 0 || it.error != null } }
+        val failed = sources.count { (_, cursors) -> cursors.any { it.error != null } }
         Text(
             when {
+                state.preparing && state.providers.isEmpty() -> "正在准备影片目录…"
                 state.providers.isEmpty() -> "在设置中添加并启用影视源"
-                state.loading -> "正在汇集影片 · $finished / ${state.providers.size} 个源已响应"
-                failed > 0 -> "${state.providers.size - failed} 个源可用 · $failed 个源暂不可用"
-                else -> "来自 ${state.providers.size} 个源 · 同片资源已合并"
+                state.loading -> "正在汇集影片 · $finished / ${sources.size} 个源已响应"
+                failed > 0 -> "${sources.size - failed} 个源可用 · $failed 个源暂不可用"
+                finished < sources.size -> "已浏览 $finished / ${sources.size} 个源 · 可继续加载"
+                else -> "来自 ${sources.size} 个源 · 同片资源已合并"
             }, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Column(Modifier.weight(1f).fillMaxWidth().testTag("vod-grid-content")
+            .focusRequester(target).focusProperties {
+                enter = { placedCards.requester(selectedId ?: works.firstOrNull()?.id) ?: FocusRequester.Default }
+            }.focusGroup()) {
         if (works.isEmpty()) {
-            Box(Modifier.fillMaxWidth().weight(1f).focusRequester(target)
-                .onKeyEvent { if (it.key == Key.DirectionLeft) { if (it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount == 0) onLeft(); true } else false }.focusable(), contentAlignment = Alignment.Center) {
-                Text(if (state.loading) "正在加载影片…" else "暂无影片，试试搜索或刷新", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(Modifier.fillMaxWidth().weight(1f)
+                .onPreviewKeyEvent {
+                    val action = when {
+                        it.key == Key.DirectionLeft -> onLeft
+                        it.key == Key.DirectionUp && filters.isNotEmpty() -> ::focusFilters
+                        it.key == Key.DirectionDown && (state.hasMore || state.loading) -> ({ footerTarget.requestFocus() })
+                        else -> null
+                    }
+                    if (action != null) { if (it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount == 0) action(); true } else false
+                }.focusable(), contentAlignment = Alignment.Center) {
+                Text(if (state.loading) "正在加载影片…" else if (state.hasMore) "暂未找到影片，试试加载更多" else "暂无影片，试试搜索或刷新", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (state.hasMore || state.loading) Button(onClick = onLoadMore,
+                modifier = Modifier.testTag("vod-load-more").focusRequester(footerTarget).vodLeft(onLeft)) {
+                Text(if (state.loading) "加载中…" else "加载更多")
             }
         } else {
             CompositionLocalProvider(LocalBringIntoViewSpec provides scrollPolicy) {
@@ -92,15 +141,19 @@ fun VodPosterGrid(
                     modifier = Modifier.weight(1f).focusGroup(),
                 ) {
                     itemsIndexed(works, key = { _, work -> work.id }) { index, work ->
+                        val cardTarget = remember(work.id) { FocusRequester() }
                         Card(
                             onClick = { onOpen(work) },
                             scale = CardDefaults.scale(focusedScale = 1.03f),
                             modifier = Modifier.fillMaxWidth().testTag("vod-work:${work.id}")
-                                .then(if (index == selectedIndex) Modifier.focusRequester(target) else Modifier)
+                                .focusRequester(cardTarget).placedFocusTarget(work.id,cardTarget,placedCards)
                                 .onFocusChanged { if (it.isFocused) onFocused(work.id) }
                                 .onPreviewKeyEvent {
                                     if (it.key == Key.DirectionLeft && index % 4 == 0) {
                                         if (it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount == 0) onLeft()
+                                        true
+                                    } else if (it.key == Key.DirectionUp && index < 4 && filters.isNotEmpty()) {
+                                        if (it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount == 0) focusFilters()
                                         true
                                     } else false
                                 },
@@ -114,8 +167,14 @@ fun VodPosterGrid(
                             }
                         }
                     }
+                    if (state.hasMore || state.loading) item(span = { GridItemSpan(maxLineSpan) }) {
+                        Button(onClick = onLoadMore,modifier = Modifier.testTag("vod-load-more").focusRequester(footerTarget).vodLeft(onLeft)) {
+                            Text(if (state.loading) "加载中…" else "加载更多")
+                        }
+                    }
                 }
             }
+        }
         }
     }
 }

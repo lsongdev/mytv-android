@@ -16,4 +16,6 @@ data class MacCmsLine(val code: String, val title: String, val parts: List<MacCm
 @Serializable
 data class MacCmsPart(val label: String, val uri: String, val directlyPlayable: Boolean)
 @Serializable
-data class MacCmsQuery(val keyword: String = "", val page: Int = 1)
+data class MacCmsQuery(val keyword: String = "", val page: Int = 1, val categoryId: String? = null)
+@Serializable
+data class MacCmsCategory(val id: String, val title: String, val parentId: String? = null)

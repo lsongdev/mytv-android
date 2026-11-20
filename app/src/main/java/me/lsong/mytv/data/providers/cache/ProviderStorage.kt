@@ -31,6 +31,8 @@ class ProviderStorage(private val directory: File, private val preferences: Shar
     private val json = Json { ignoreUnknownKeys = true }
     private val mutex = Mutex()
     private var initialized = false
+    // Responses started before a clear may still display, but must not repopulate storage.
+    private var generation = 0L
     private val _health = MutableStateFlow<Map<String,ProviderHealth>>(emptyMap())
     val health = _health.asStateFlow()
 
@@ -40,6 +42,20 @@ class ProviderStorage(private val directory: File, private val preferences: Shar
             initialized = true
         }
     } }
+    suspend fun cacheSize(): Long = withContext(Dispatchers.IO) { mutex.withLock {
+        directory.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+    } }
+
+    suspend fun clearCache() = withContext(Dispatchers.IO) {
+        initialize()
+        mutex.withLock {
+            generation++
+            check(directory.deleteRecursively()) { "无法清除源缓存" }
+            _health.value = health.value.mapValues { (_, status) -> status.copy(cachedAt = 0) }
+            preferences.edit().putString("PROVIDER_HEALTH_V1", json.encodeToString(health.value)).apply()
+        }
+    }
+
     private fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
     private fun file(provider: ProviderConfig, key: String) = File(directory, hash("${provider.id}|${provider.url}|$key") + ".json")
     fun state(provider: ProviderConfig): ProviderHealth? = health.value[provider.id]?.takeIf { it.endpoint == hash(provider.url) }
@@ -51,6 +67,7 @@ class ProviderStorage(private val directory: File, private val preferences: Shar
     }
     suspend fun <T> get(provider: ProviderConfig, key: String, serializer: KSerializer<T>, freshFor: Long = 600_000, force: Boolean = false, maxBytes: Long = 8_000_000, fetch: suspend () -> T): T {
         initialize()
+        val requestGeneration = mutex.withLock { generation }
         val old = cached(provider,key,serializer,maxBytes = maxBytes)
         val status = state(provider)
         if (!force && status != null && status.retryAt > now()) return old?.value ?: throw ProviderBackoffException(status.retryAt)
@@ -58,6 +75,7 @@ class ProviderStorage(private val directory: File, private val preferences: Shar
         return try {
             val result = measure(provider,fetch)
             withContext(Dispatchers.IO) { try { mutex.withLock {
+                if (requestGeneration != generation) return@withLock
                 directory.mkdirs()
                 val text = json.encodeToString(ProviderCacheEntry.serializer(serializer),ProviderCacheEntry(now(),result))
                 val bytesToWrite = text.toByteArray(Charsets.UTF_8)

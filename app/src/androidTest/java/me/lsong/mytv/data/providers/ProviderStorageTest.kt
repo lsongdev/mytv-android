@@ -22,6 +22,25 @@ class ProviderStorageTest {
         val store = ProviderStorage(directory,prefs,now = { time })
         try { block(store,{time},{time=it}) } finally { directory.deleteRecursively(); prefs.edit().clear().commit() }
     }
+    @Test fun clearingDuringARequestDoesNotRestoreTheOldCache() = fixture { store, _, _ ->
+        val started = CompletableDeferred<Unit>()
+        val finish = CompletableDeferred<Unit>()
+        val request = async {
+            store.get(provider, "page", String.serializer()) {
+                started.complete(Unit)
+                finish.await()
+                "old response"
+            }
+        }
+        started.await()
+        store.clearCache()
+        finish.complete(Unit)
+        assertEquals("old response", request.await())
+        assertNull(store.cached(provider, "page", String.serializer()))
+        assertEquals(0L, store.cacheSize())
+        assertEquals(0L, store.state(provider)!!.cachedAt)
+    }
+
     @Test fun freshCacheSkipsNetworkButExplicitRefreshDoesNot() = fixture { store, _, _ ->
         var requests = 0
         suspend fun get(force: Boolean = false) = store.get(provider,"page",String.serializer(),force = force) { "value-${++requests}" }
