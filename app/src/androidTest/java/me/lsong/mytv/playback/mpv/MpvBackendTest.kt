@@ -32,7 +32,7 @@ class MpvBackendTest {
             compose.setContent { AndroidView(factory = { SurfaceView(it).also(player::setVideoSurfaceView) }, modifier = Modifier.fillMaxSize()) }
             compose.runOnIdle { player.prepare(PlaybackRequest(file.toURI().toString())); player.play() }
             compose.waitUntil(20_000) { ready && compose.runOnIdle { player.positionMs > 1_000 } }
-            compose.runOnIdle { player.pause(); player.seekTo(2_000); player.speed = 1.25f; player.play() }
+            compose.runOnIdle { player.setDisplayAspectRatio(4f/3f); player.pause(); player.seekTo(2_000); player.speed = 1.25f; player.play() }
             compose.waitUntil(10_000) { compose.runOnIdle { player.positionMs > 2_500 } }
         } finally { compose.runOnIdle { player.release() }; scope.cancel(); file.delete() }
     }

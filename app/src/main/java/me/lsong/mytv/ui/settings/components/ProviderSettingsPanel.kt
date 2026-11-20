@@ -24,6 +24,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -81,7 +86,7 @@ fun ProviderSettingsPanel(kind: ProviderKind, viewModel: ProviderSettingsViewMod
                 Text("添加源")
             }
         }
-        Text("${filtered.size} 个源 · ${filtered.count { it.isEnabled }} 个已启用", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("${filtered.size} 个源 · ${filtered.count { it.isEnabled }} 个已启用 · OK 启用/停用 · → 编辑", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (filtered.isEmpty()) {
             Box(Modifier.fillMaxWidth().weight(1f).background(Color.White.copy(alpha = 0.025f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -95,7 +100,7 @@ fun ProviderSettingsPanel(kind: ProviderKind, viewModel: ProviderSettingsViewMod
                 items(filtered, key = { it.id }) { source ->
                     ListItem(
                         selected = false,
-                        onClick = { hadEditor = true; viewModel.clearCheck(); editing = source },
+                        onClick = { viewModel.save(source.copy(isEnabled = !source.isEnabled)) },
                         scale = ListItemDefaults.scale(focusedScale = 1f),
                         colors = ListItemDefaults.colors(containerColor = Color.White.copy(alpha = .07f), focusedContainerColor = MaterialTheme.colorScheme.onSurface, focusedContentColor = MaterialTheme.colorScheme.surface),
                         headlineContent = { Text(source.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -115,7 +120,17 @@ fun ProviderSettingsPanel(kind: ProviderKind, viewModel: ProviderSettingsViewMod
                             }
                         },
                         trailingContent = { Text(if (source.isEnabled) "已启用" else "已停用", style = MaterialTheme.typography.labelMedium) },
-                        modifier = Modifier.fillMaxWidth().testTag("source:${source.id}"),
+                        modifier = Modifier.fillMaxWidth().testTag("source:${source.id}")
+                            .onPreviewKeyEvent { event ->
+                                if (event.key == Key.DirectionRight) {
+                                    if (event.type == KeyEventType.KeyUp) {
+                                        hadEditor = true
+                                        viewModel.clearCheck()
+                                        editing = source
+                                    }
+                                    true
+                                } else false
+                            },
                     )
                 }
             }

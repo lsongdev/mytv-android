@@ -159,18 +159,18 @@ object AppPreferences {
         )
         set(value) = sp.edit().putInt(KEY.VIDEO_PLAYER_ASPECT_RATIO.name, value.value).apply()
 
-    enum class VideoPlayerAspectRatio(val value: Int) {
+    enum class VideoPlayerAspectRatio(val value: Int, val title: String) {
         /** 原始 */
-        ORIGINAL(0),
+        ORIGINAL(0,"原始"),
 
         /** 16:9 */
-        ASPECT_16_9(1),
+        ASPECT_16_9(1,"16:9"),
 
         /** 4:3 */
-        ASPECT_4_3(2),
+        ASPECT_4_3(2,"4:3"),
 
         /** full screen */
-        FULL_SCREEN(3);
+        FULL_SCREEN(3,"拉伸");
 
         companion object {
             fun fromValue(value: Int): VideoPlayerAspectRatio {

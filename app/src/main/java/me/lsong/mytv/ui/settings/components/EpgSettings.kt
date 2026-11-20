@@ -31,7 +31,7 @@ fun EpgSettings(modifier: Modifier = Modifier) {
         item { SettingsRow(headlineContent = "当前节目信息", supportingContent = "在频道列表和播放控制中显示", trailingContent = if (options.showProgrammes) "显示" else "隐藏", onSelected = { update(options.copy(showProgrammes = !options.showProgrammes)) }) }
         item { SettingsRow(headlineContent = "节目单", trailingContent = if (options.epgEnabled) "开启" else "关闭", onSelected = { update(options.copy(epgEnabled = !options.epgEnabled)) }) }
         item { SettingsRow(headlineContent = "从直播源发现节目单", supportingContent = "读取 M3U 的 x-tvg-url / url-tvg，支持 XMLTV 和 gzip", trailingContent = if (options.discoverEpg) "开启" else "关闭", onSelected = { update(options.copy(discoverEpg = !options.discoverEpg)) }) }
-        item { SettingsRow(headlineContent = "默认节目单", supportingContent = "未配置且直播源没有节目单时使用 51zmt", trailingContent = if (options.useDefaultEpg) "开启" else "关闭", onSelected = { update(options.copy(useDefaultEpg = !options.useDefaultEpg)) }) }
+        item { SettingsRow(headlineContent = "默认节目单", supportingContent = "自定义和直播源节目单均不可用时，使用公共 XMLTV 兜底", trailingContent = if (options.useDefaultEpg) "开启" else "关闭", onSelected = { update(options.copy(useDefaultEpg = !options.useDefaultEpg)) }) }
         item { SettingsRow(headlineContent = "自动刷新间隔", trailingContent = "${options.refreshHours} 小时", onSelected = { val values = listOf(1,3,6,12,24); update(options.copy(refreshHours = values[(values.indexOf(options.refreshHours) + 1) % values.size])) }) }
         item { SettingsRow(headlineContent = "立即刷新节目单", supportingContent = if (state.loading) "正在加载…" else "${state.feeds.size} 个节目单 · ${state.programmes.size} 个频道；失败保留缓存，后台自动退避", trailingContent = "刷新", onSelected = { AppContainer.epg.refresh() }) }
         item { Text("添加自定义 XMLTV 地址", style = MaterialTheme.typography.titleMedium) }
@@ -50,7 +50,7 @@ fun EpgSettings(modifier: Modifier = Modifier) {
             // Reading health above subscribes this row to network status updates.
             val status = health[feed?.provider?.id ?: "epg:$url"]
             val description = buildList {
-                add(if (url in options.epgUrls) "自定义 · 按确定移除" else "来自直播源 / 默认节目单")
+                add(if (url in options.epgUrls) "自定义 · 按确定移除" else if (feed?.fallback == true) "默认公共节目单 · 主节目单不可用时启用" else "来自直播源")
                 add(status?.let { if (it.error == null) "响应成功 · ${it.latencyMs} ms" else "${it.error} · 已退避" } ?: "等待加载")
                 status?.takeIf { it.respondedAt > 0 }?.let { add("最后响应 ${format.format(Date(it.respondedAt))}") }
                 status?.takeIf { it.cachedAt > 0 }?.let { add("缓存 ${format.format(Date(it.cachedAt))}") }

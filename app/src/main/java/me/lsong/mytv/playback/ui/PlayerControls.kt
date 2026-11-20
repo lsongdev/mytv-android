@@ -22,6 +22,8 @@ import androidx.compose.ui.focus.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
+import androidx.compose.ui.layout.onSizeChanged
+import kotlin.math.roundToInt
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
@@ -39,6 +41,7 @@ import java.util.Locale
 fun PlayerControls(
     player: PlaybackState, title: String, live: Boolean, speed: Float,
     onToggle: () -> Unit, onSpeed: () -> Unit, onMenu: () -> Unit, onClose: () -> Unit,
+    aspectRatioLabel: String, onAspectRatio: () -> Unit,
     danmakuLabel: String? = null, onDanmakuToggle: () -> Unit = {}, onDanmakuSettings: () -> Unit = {},
     liveProgramme: String? = null, restoreFocus: Int = 0, resourceLabel: String? = null, onResource: () -> Unit = {}, onBack: () -> Unit = onClose,
 ) {
@@ -50,6 +53,7 @@ fun PlayerControls(
     val clockFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val scrub = remember { FocusRequester() }
     val action = remember { FocusRequester() }
+    val aspect = remember { FocusRequester() }
     val danmakuToggle = remember { FocusRequester() }
     val danmakuSettings = remember { FocusRequester() }
     val hasAction = !live || resourceLabel != null
@@ -88,9 +92,14 @@ fun PlayerControls(
                     modifier = Modifier.testTag(if (live) "player-resource" else "player-speed")
                         .focusRequester(action).focusProperties {
                             down = scrub; up = FocusRequester.Cancel
-                            left = if (!live && danmakuLabel != null) danmakuSettings else FocusRequester.Cancel; right = FocusRequester.Cancel
+                            left = if (!live && danmakuLabel != null) danmakuSettings else FocusRequester.Cancel; right = aspect
                         },
                 )
+                PlayerControlPill("比例 · $aspectRatioLabel",onAspectRatio,{ actionFocused = it },
+                    Modifier.testTag("player-aspect-ratio").focusRequester(aspect).focusProperties {
+                        down = scrub; up = FocusRequester.Cancel
+                        left = if (hasAction) action else FocusRequester.Cancel; right = FocusRequester.Cancel
+                    })
             }
             if (live && liveProgramme != null) Text(liveProgramme, color = Color.White.copy(alpha = .75f),
                 fontSize = 14.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -107,17 +116,19 @@ fun PlayerControls(
                     }
                 },
                 onToggle = onToggle,
-                onUp = { if (hasAction) action.requestFocus() },
+                onUp = { if (hasAction) action.requestFocus() else aspect.requestFocus() },
                 focusRequester = scrub,
-                modifier = Modifier.padding(top = 8.dp).testTag("player-progress"),
+                modifier = Modifier.testTag("player-progress"),
             )
             if (!live) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(formatTime(position), Modifier.weight(1f), color = Color.White, fontSize = 14.sp)
-                estimatedPlaybackEndMs(nowMs, position, duration, speed)?.let { end ->
-                    Text("结束 ${clockFormat.format(Date(end))}", Modifier.testTag("player-end-time"),
-                        color = Color.White.copy(alpha = .55f), fontSize = 13.sp)
+                Text(if (duration > 0) "剩余 ${formatTime((duration-position).coerceAtLeast(0))}" else "剩余 --:--",
+                    Modifier.weight(1f).testTag("player-remaining-time"),color = Color.White.copy(alpha = .85f),fontSize = 13.sp)
+                Text(if (duration > 0) "总时长 ${formatTime(duration)}" else "总时长 --:--",
+                    Modifier.testTag("player-total-time"),color = Color.White.copy(alpha = .65f),fontSize = 13.sp)
+                estimatedPlaybackEndMs(nowMs,position,duration,speed)?.let { end ->
                     Spacer(Modifier.width(16.dp))
-                    Text("-${formatTime((duration - position).coerceAtLeast(0))}", color = Color.White.copy(alpha = .85f), fontSize = 14.sp)
+                    Text("预计结束 ${clockFormat.format(Date(end))}",Modifier.testTag("player-end-time"),
+                        color = Color.White.copy(alpha = .55f),fontSize = 13.sp)
                 }
             }
         }
@@ -156,10 +167,10 @@ private fun PlayerScrubber(
     var focused by remember { mutableStateOf(false) }
     val fraction = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
     val trackHeight by animateDpAsState(if (focused) 6.dp else 4.dp, tween(160), label = "trackHeight")
-    val knob by animateDpAsState(if (focused && !live) 18.dp else 0.dp, spring(dampingRatio = .55f, stiffness = 420f), label = "knob")
+    var thumbWidthPx by remember { mutableIntStateOf(0) }
     val toggleLabel = if (paused) "继续播放" else "暂停播放"
     Row(
-        modifier.fillMaxWidth().height(40.dp).focusRequester(focusRequester)
+        modifier.fillMaxWidth().height(32.dp).focusRequester(focusRequester)
             .onFocusChanged { focused = it.isFocused }
             .focusProperties {
                 up = FocusRequester.Cancel; left = FocusRequester.Cancel; right = FocusRequester.Cancel
@@ -196,16 +207,18 @@ private fun PlayerScrubber(
             if (paused) Icons.Default.PlayArrow else Icons.Default.Pause,
             toggleLabel, Modifier.size(26.dp).testTag("player-playback-indicator"), tint = Color.White,
         )
-        BoxWithConstraints(Modifier.weight(1f).height(28.dp)) {
+        BoxWithConstraints(Modifier.weight(1f).height(28.dp).testTag("player-timeline")) {
             val width = maxWidth
+            val widthPx = constraints.maxWidth
             Box(Modifier.fillMaxWidth().height(trackHeight).align(Alignment.Center).clip(CircleShape).background(Color.White.copy(alpha = .25f)))
             Box(Modifier.width(width * if (live) 1f else fraction).height(trackHeight).align(Alignment.CenterStart).clip(CircleShape)
                 .background(if (focused) Color.White else Color.White.copy(alpha = .7f)))
-            if (knob > 0.dp) {
-                Box(Modifier.align(Alignment.CenterStart).offset(x = width * fraction - knob / 2).size(knob).clip(CircleShape).background(Color.White))
-            }
             if (focused && !live) Box(
-                Modifier.align(Alignment.CenterStart).offset(x = (width * fraction - 30.dp).coerceIn(0.dp, (width - 64.dp).coerceAtLeast(0.dp)), y = (-26).dp)
+                Modifier.align(Alignment.CenterStart)
+                    .offset { IntOffset((widthPx * fraction - thumbWidthPx / 2f).roundToInt()
+                        .coerceIn(0,(widthPx - thumbWidthPx).coerceAtLeast(0)),0) }
+                    .onSizeChanged { thumbWidthPx = it.width }
+                    .testTag("player-time-thumb")
                     .clip(RoundedCornerShape(7.dp)).background(Color.White),
             ) {
                 Text(formatTime(positionMs), color = Color(0xFF0A0A0A), fontSize = 12.sp,

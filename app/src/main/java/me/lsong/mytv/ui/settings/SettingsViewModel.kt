@@ -105,4 +105,9 @@ class SettingsViewModel : ViewModel() {
             _videoPlayerAspectRatio = value
             AppPreferences.videoPlayerAspectRatio = value
         }
+    fun cycleVideoAspectRatio() {
+        val values = AppPreferences.VideoPlayerAspectRatio.entries
+        videoPlayerAspectRatio = values[(values.indexOf(videoPlayerAspectRatio) + 1) % values.size]
+    }
+
 }

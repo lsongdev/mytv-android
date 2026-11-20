@@ -51,18 +51,8 @@ fun GeneralSettings(
             item {
                 SettingsRow(
                     headlineContent = "全局画面比例",
-                    trailingContent = when (settingsViewModel.videoPlayerAspectRatio) {
-                        AppPreferences.VideoPlayerAspectRatio.ORIGINAL -> "原始"
-                        AppPreferences.VideoPlayerAspectRatio.ASPECT_16_9 -> "16:9"
-                        AppPreferences.VideoPlayerAspectRatio.ASPECT_4_3 -> "4:3"
-                        AppPreferences.VideoPlayerAspectRatio.FULL_SCREEN -> "自动拉伸"
-                    },
-                    onSelected = {
-                        settingsViewModel.videoPlayerAspectRatio =
-                            AppPreferences.VideoPlayerAspectRatio.entries.let {
-                                it[(it.indexOf(settingsViewModel.videoPlayerAspectRatio) + 1) % it.size]
-                            }
-                    },
+                    trailingContent = settingsViewModel.videoPlayerAspectRatio.title,
+                    onSelected = settingsViewModel::cycleVideoAspectRatio,
                 )
             }
             item {

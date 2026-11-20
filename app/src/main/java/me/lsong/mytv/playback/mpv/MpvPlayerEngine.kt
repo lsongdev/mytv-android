@@ -94,7 +94,7 @@ class MpvPlayerEngine(
         triggerPrepared()
         val url = if (request.uri.startsWith("file:")) android.net.Uri.parse(request.uri).path ?: request.uri else request.uri
         val startMs = request.startPositionMs
-        val playWhenReady = true
+        val playWhenReady = request.playWhenReady
         mpv.setPropertyString("http-header-fields", request.headers.entries.joinToString(",") { "${it.key}: ${it.value}" })
         error = null
         hasStarted = false
@@ -128,6 +128,9 @@ class MpvPlayerEngine(
         mpv.setPropertyString("pause", if (isPlaying) "yes" else "no")
     }
 
+    override fun setDisplayAspectRatio(ratio: Float?) {
+        if (!released) mpv.setPropertyString("video-aspect-override",ratio?.toString() ?: "no")
+    }
     override fun play() { if (!released) mpv.setPropertyString("pause", "no") }
     override fun pause() { stopMonitoring(); if (!released) mpv.setPropertyString("pause", "yes") }
 

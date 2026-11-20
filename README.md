@@ -35,7 +35,7 @@ remove the app task; releasing that hold never triggers a second Back action.
 OK, left or right first opens playback controls; up/down changes live channels
 (with the existing reverse-direction preference). On the focused timeline,
 left/right seeks VOD by ten seconds and OK toggles pause for both VOD and live TV.
-The play/pause icon or LIVE indicator shares the timeline's focus target.
+The play/pause icon or LIVE indicator shares the timeline's focus target. The focused VOD timeline uses its current-time pill as the thumb, centered on the track, rather than a floating bubble above a dot.
 Up reaches the compact speed or live-resource pill above the timeline; down returns to the timeline. The menu key also
 opens the drawer. Playing controls hide after six seconds of inactivity while the timeline has focus. Pills keep controls visible during adjustment. VOD also shows the estimated finish clock (adjusted for speed) and remaining duration.
 
@@ -43,9 +43,19 @@ opens the drawer. Playing controls hide after six seconds of inactivity while th
 
 ### Settings inside the drawer
 
-The first column contains **直播**, **影视** and Settings. Focus Settings at the bottom. The second column shows settings
+The first column contains **直播**, **影视**, **应用** and Settings. Focus Settings at the bottom. The second column shows settings
 categories in the order 常规, 直播, 影视, 台标与节目单, 弹幕, 关于; the third manages IPTV M3U sources, AppleCMS V10 VOD endpoints and
 preferences. Source forms stay in the third column. Back returns to playback; use Cancel to leave the editor. The underlying player remains mounted.
+
+**应用** lists installed launchable apps with their names and icons. Use up/down to select,
+OK to launch, and left to return to the first column. Right expands app details with
+package/version information and Open, App info, and Uninstall actions. Left or Back
+collapses details and restores app focus. Uninstall opens the system confirmation;
+system apps can be managed through App info. TV launch activities take priority;
+apps with ordinary Android launch activities are included too. The list refreshes after
+installation/removal and when returning from another app.
+OhMyTV can also be selected as the default Home app in Android system settings.
+Once selected, booting the device or pressing Home opens the **应用** section.
 
 Sources have a stable ID, name, URL, type (`IPTV` or `VOD`) and enabled state.
 IPTV changes refresh the channel catalog without restarting the player.
@@ -166,3 +176,25 @@ Pull requests run unit tests, Lint and Android 7 / Android 14 instrumented tests
 Successful master builds publish a signed Release APK and checksums as a GitHub
 nightly prerelease; version tags publish normal releases. See
 [CI and signing](docs/architecture/ci-release.md).
+
+Danmaku now merges independent platform matches. The playback drawer separates
+**弹幕样式** and **弹幕来源**. Sources are non-focusable section headings; each flat
+candidate row identifies both a film and an episode. OK selects/enables one row per
+source, or disables the selected row. Multiple source sections can be active.
+Left/right on the chosen row shifts that source by one second. Other episodes expand
+inline; no intermediate film/episode picker is required. Offsets and manual matches
+persist per work/episode/provider, with the movie default used for unadjusted episodes.
+
+Playback controls include an immediate aspect-ratio cycle (Original → 16:9 → 4:3 →
+Stretch), shared with General Settings. The timeline thumb shows current position;
+below it, remaining duration stays on the left, with total duration and estimated
+finish time on the right. The finish estimate reflects playback speed. Opening the
+danmaku drawer freezes both video and comments rather than looping a preview.
+
+The app checkpoints its last live/VOD session every five seconds and on playback
+state changes or leaving the activity. Startup restores the channel/episode, line,
+VOD position, playback speed and pause intent before choosing any default channel.
+A cached VOD episode starts immediately while provider details refresh in the
+background. Disabled providers are excluded; failed lines retain progress during
+fallback. Live playback restores its channel/line at the live edge. Only the current
+episode and compact work metadata are persisted, rather than entire catalogs.

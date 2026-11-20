@@ -26,9 +26,9 @@ class DanmakuTextureView(context: Context) : TextureView(context), TextureView.S
         surfaceTextureListener = this
     }
 
-    fun submitItems(list: List<DanmakuItem>) {
+    fun submitItems(list: List<DanmakuItem>, clear: Boolean = false) {
         pendingItems = list
-        renderThread?.let { t -> t.post { engine.setItems(list) }; t.requestRedraw() }
+        renderThread?.let { t -> t.post { engine.setItems(list); if (clear) engine.clear() }; t.requestRedraw() }
     }
 
     fun submitConfig(config: DanmakuEngineConfig) {

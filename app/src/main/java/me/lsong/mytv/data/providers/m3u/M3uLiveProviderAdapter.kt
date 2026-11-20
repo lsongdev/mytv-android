@@ -1,5 +1,6 @@
 package me.lsong.mytv.data.providers.m3u
 
+import me.lsong.mytv.domain.live.liveChannelEditionYear
 import me.lsong.mytv.domain.live.LiveCatalogProvider
 
 import me.lsong.media.m3u.M3uDocument
@@ -33,7 +34,8 @@ internal fun M3uEntry.toChannelRecord(provider: ProviderConfig): ProviderChannel
     val name = attributes["tvg-name"]?.takeIf(String::isNotBlank) ?: title
     val group = attributes["group-title"]?.takeIf(String::isNotBlank) ?: "未分组"
     val remoteId = attributes["tvg-id"]?.takeIf(String::isNotBlank) ?: listOf(group, name).joinToString("|")
-    val ref = ProviderRecordRef(provider.id, remoteId)
+    val edition = liveChannelEditionYear(title)
+    val ref = ProviderRecordRef(provider.id,if (edition == null) remoteId else "$remoteId|edition:$edition")
     val headers = buildMap {
         attributes["http-user-agent"]?.let { put("User-Agent", it) }
         (attributes["http-referer"] ?: attributes["http-referrer"])?.let { put("Referer", it) }

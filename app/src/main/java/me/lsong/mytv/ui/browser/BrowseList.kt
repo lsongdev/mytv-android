@@ -96,7 +96,14 @@ internal fun BrowseList(
                     supportingContent = entry.subtitle?.let { subtitle ->
                         { Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     },
-                    leadingContent = if (entry is BrowseEntry.Channel && entry.showLogo) { { ChannelLogo(entry.title, entry.logo, entry.fallbackLogo) } } else null,
+                    leadingContent = when {
+                        entry is BrowseEntry.Application -> { {
+                            coil.compose.AsyncImage(model = entry.app.icon, contentDescription = null,
+                                contentScale = ContentScale.Fit, modifier = Modifier.size(36.dp))
+                        } }
+                        entry is BrowseEntry.Channel && entry.showLogo -> { { ChannelLogo(entry.title, entry.logo, entry.fallbackLogo) } }
+                        else -> null
+                    },
                     trailingContent = if (entry.playing) { { Icon(Icons.Default.Check, "正在播放", Modifier.size(18.dp)) } } else null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
                         .testTag("drawer-entry:${entry.id}")

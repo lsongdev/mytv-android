@@ -20,6 +20,8 @@ object AppContainer {
         private set
     lateinit var epg: me.lsong.mytv.data.epg.EpgRepository
         private set
+    lateinit var playbackSessions: me.lsong.mytv.data.playback.PlaybackSessionStore
+        private set
     lateinit var identities: CatalogIdentityStore
         private set
 
@@ -28,6 +30,7 @@ object AppContainer {
         AppPreferences.init(context)
         val preferences = context.getSharedPreferences(AppConstants.PREFERENCES_NAME,Context.MODE_PRIVATE)
         providerStorage = me.lsong.mytv.data.providers.cache.ProviderStorage(java.io.File(context.cacheDir,"provider-metadata-v1"),preferences)
+        playbackSessions = me.lsong.mytv.data.playback.PlaybackSessionStore(preferences)
         livePreferences = LivePreferences(preferences)
         epg = me.lsong.mytv.data.epg.EpgRepository(livePreferences,providerStorage)
         danmakuPreferences = DanmakuPreferenceStore(preferences)

@@ -37,18 +37,22 @@ class PlaybackState(
     var isBuffering by mutableStateOf(false)
         private set
 
+    var isReleased: Boolean = false
+        private set
+
     private var playRequested by mutableStateOf(true)
     val isPaused get() = !playRequested
 
     fun prepare(request: PlaybackRequest) {
         error = null
         isBuffering = true
-        playRequested = true
+        playRequested = request.playWhenReady
         instance.prepare(request)
-        instance.play()
+        if (request.playWhenReady) instance.play() else instance.pause()
     }
 
     fun setSpeed(value: Float) { instance.speed = value }
+    fun setDisplayAspectRatio(ratio: Float?) = instance.setDisplayAspectRatio(ratio)
 
     val positionMs: Long get() = instance.positionMs
     val durationMs: Long get() = instance.durationMs
@@ -113,6 +117,8 @@ class PlaybackState(
     }
 
     fun release() {
+        if (isReleased) return
+        isReleased = true
         onReadyListeners.clear()
         onErrorListeners.clear()
         onCutoffListeners.clear()

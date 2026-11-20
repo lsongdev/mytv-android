@@ -7,4 +7,5 @@ data class PlaybackRequest(
     val mimeType: String? = null,
     val startPositionMs: Long = 0,
     val live: Boolean = false,
+    val playWhenReady: Boolean = true,
 )

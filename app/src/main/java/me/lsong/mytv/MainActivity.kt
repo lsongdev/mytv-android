@@ -3,6 +3,10 @@ package me.lsong.mytv
 import me.lsong.mytv.app.AppScreen
 import me.lsong.mytv.ui.theme.TvTheme
 
+import android.content.Intent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
@@ -29,6 +33,14 @@ import me.lsong.mytv.ui.input.BackKeyHandler
 import android.view.KeyEvent
 
 class MainActivity : ComponentActivity() {
+    private var homeRequest by mutableIntStateOf(0)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) homeRequest++
+    }
+
     private val backKeys by lazy {
         BackKeyHandler(
             onShortPress = { onBackPressedDispatcher.onBackPressed() },
@@ -49,6 +61,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) homeRequest++
         enableEdgeToEdge()
         setContent {
             // 隐藏状态栏、导航栏
@@ -62,7 +75,7 @@ class MainActivity : ComponentActivity() {
             }
             // 屏幕常亮
             TvTheme {
-                AppScreen()
+                AppScreen(homeRequest = homeRequest)
             }
         }
 

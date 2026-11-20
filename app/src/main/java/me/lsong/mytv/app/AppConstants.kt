@@ -26,8 +26,7 @@ object AppConstants {
     /**
      * 节目单XML地址
      */
-    const val EPG_XML_URL = "http://epg.51zmt.top:8000/e.xml.gz"
-    // const val EPG_XML_URL = "http://epg.51zmt.top:8000/e.xml"
+    const val EPG_XML_URL = "https://raw.githubusercontent.com/fanmingming/live/main/e.xml"
 
     /**
      * HTTP请求重试次数

@@ -88,6 +88,7 @@ class Media3PlayerEngine(
 
         if (mediaSource != null) {
             contentTypeAttempts[contentType ?: Util.inferContentTypeForUriAndMimeType(uri, request.mimeType)] = true
+            videoPlayer.playWhenReady = request.playWhenReady
             videoPlayer.setMediaSource(mediaSource)
             if (request.live) videoPlayer.seekToDefaultPosition() else videoPlayer.seekTo(request.startPositionMs)
             videoPlayer.prepare()

@@ -13,7 +13,6 @@ class AppViewModel : ViewModel() {
 
     init {
         viewModelScope.launch { AppContainer.epg.observe(androidx.compose.runtime.snapshotFlow { liveCatalog.providerCatalogs }) }
-        viewModelScope.launch { AppContainer.epg.observe(androidx.compose.runtime.snapshotFlow { liveCatalog.providerCatalogs }) }
         viewModelScope.launch {
             AppContainer.providerConfigs.providers
                 .map { providers -> providers.filter { it.kind == ProviderKind.M3U && it.isEnabled } }

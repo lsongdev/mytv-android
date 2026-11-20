@@ -18,9 +18,12 @@ class EpgFeedsTest {
         assertTrue(epgFeeds(catalogs,LiveOptions(epgUrls = setOf("https://a/epg.xml"))).single().owners.isEmpty())
         assertTrue(epgFeeds(catalogs,LiveOptions(discoverEpg = false)).isEmpty())
     }
-    @Test fun defaultFeedRequiresExplicitOptInAndNoOtherFeeds() {
+    @Test fun defaultFeedIsAnExplicitLastResortEvenWhenOtherFeedsExist() {
         assertTrue(epgFeeds(emptyList(),LiveOptions()).isEmpty())
         assertEquals(1,epgFeeds(emptyList(),LiveOptions(useDefaultEpg = true)).size)
-        assertEquals("https://custom/epg",epgFeeds(emptyList(),LiveOptions(useDefaultEpg = true,epgUrls = setOf("https://custom/epg"))).single().url)
+        val feeds = epgFeeds(emptyList(),LiveOptions(useDefaultEpg = true,epgUrls = setOf("https://custom/epg")))
+        assertEquals("https://custom/epg",feeds.first().url)
+        assertTrue(feeds.last().fallback)
+        assertEquals(2,feeds.size)
     }
 }

@@ -13,4 +13,16 @@ class EpgMetadataTest {
         assertEquals("午间新闻",channel.programmes.single().title)
         assertEquals(3600_000L,channel.programmes.single().endsAt-channel.programmes.single().startsAt)
     }
+    @Test fun numericTimestampFastPathKeepsTimezoneOffsetsAndRejectsInvalidDates() {
+        val document = XmltvParser.parse("""<tv>
+            <programme channel="east" start="20240229003000 +0800" stop="20240229013000 +0800"><title>东</title></programme>
+            <programme channel="west" start="20240228113000 -0500" stop="20240228123000 -0500"><title>西</title></programme>
+            <programme channel="utc" start="20240228163000" stop="20240228173000"><title>UTC</title></programme>
+            <programme channel="invalid" start="20240230003000 +0800" stop="20240230013000 +0800"><title>无效日期</title></programme>
+            </tv>""")
+        assertEquals(3,document.channels.size)
+        assertEquals(1,document.channels.flatMap { it.programmes }.map { it.startsAt }.distinct().size)
+        assertTrue(document.channels.all { it.programmes.single().endsAt - it.programmes.single().startsAt == 3600_000L })
+    }
+
 }

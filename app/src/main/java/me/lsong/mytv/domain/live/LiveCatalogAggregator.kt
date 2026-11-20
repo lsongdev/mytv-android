@@ -11,7 +11,10 @@ fun mergeLiveCatalogs(catalogs: List<ProviderLiveCatalog>, identities: CatalogId
     val buckets = linkedMapOf<String, MutableList<ProviderChannelRecord>>()
     catalogs.flatMap { it.records }.forEach { record ->
         val name = normalizeChannelName(record.name)
-        val identity = if (name.length <= 2 || name in setOf("新闻", "综合", "电影", "体育", "news")) "${record.groupTitle}|$name" else name
+        val year = liveChannelEditionYear(record.title)
+        val content = if (year != null) "${name.replace(editionYear, "")}|edition:$year" else name
+        val needsGroup = name in setOf("新闻", "综合", "电影", "体育", "news") || (name.length <= 2 && year == null)
+        val identity = if (needsGroup) "${record.groupTitle}|$content" else content
         buckets.getOrPut(identity) { mutableListOf() } += record
     }
     val groups = linkedMapOf<String, MutableList<LiveChannel>>()
@@ -34,3 +37,8 @@ fun mergeLiveCatalogs(catalogs: List<ProviderLiveCatalog>, identities: CatalogId
 private fun normalizeChannelName(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
     .lowercase().replace(Regex("""[\p{P}\p{Z}\s]+"""), "")
     .replace(Regex("(?:高清|超清|标清|hd|fhd)$"), "")
+
+/** An EPG name can describe a series; the visible year distinguishes its recordings. */
+internal fun liveChannelEditionYear(title: String): String? = editionYear.findAll(Normalizer.normalize(title,Normalizer.Form.NFKC))
+    .map { it.value }.distinct().toList().singleOrNull()
+private val editionYear = Regex("""(?<![0-9])(?:19|20)[0-9]{2}(?![0-9])""")

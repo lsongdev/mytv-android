@@ -22,4 +22,20 @@ class DanmakuMatchingTest {
         assertEquals("day",matchDanmakuEpisode(work,VideoPart("date:20261120","这一期",1,emptyList()),episodes)?.episodeId)
         assertEquals("day",matchDanmakuEpisode(work.copy(variants=work.variants.map { it.copy(kind=VideoKind.MOVIE) }),VideoPart("feature","正片",0,emptyList()),episodes)?.episodeId)
     }
+    @Test fun explicitEpisodeNumbersOverrideUnreliableListPositions() {
+        val episodes = listOf(DanmakuEpisode("a","three","第 3 集",2))
+        assertNull(matchDanmakuEpisode(work,VideoPart("s1e2","第二集",2,emptyList()),episodes))
+        assertEquals("three",matchDanmakuEpisode(work,VideoPart("s1e3","第三集",3,emptyList()),episodes)?.episodeId)
+    }
+    @Test fun conflictingCopiesOfTheSameEpisodeNeedManualConfirmation() {
+        val episodes = listOf(DanmakuEpisode("a","one","第2集",2),DanmakuEpisode("a","two","第 2 集",3))
+        assertNull(matchDanmakuEpisode(work,VideoPart("s1e2","第2集",2,emptyList()),episodes))
+    }
+
+    @Test fun chineseEpisodeLabelsOverridePositionsToo() {
+        val episodes = listOf(DanmakuEpisode("a","three","第三集",2))
+        assertNull(matchDanmakuEpisode(work,VideoPart("s1e2","第2集",2,emptyList()),episodes))
+        assertEquals("three",matchDanmakuEpisode(work,VideoPart("s1e3","第3集",3,emptyList()),episodes)?.episodeId)
+    }
+
 }

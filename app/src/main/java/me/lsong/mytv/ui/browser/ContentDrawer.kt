@@ -37,7 +37,6 @@ import me.lsong.mytv.domain.live.LiveChannel
 
 private const val LIVE_AGGREGATE_ID = "live"
 private const val ALL_GROUP = "all"
-private const val VOD_ENTRY = "videos"
 private val DrawerBackground = Color(0xD911151D)
 
 /** Browsing is independent of playback. Keep this state above the drawer's visibility branch. */
@@ -55,6 +54,8 @@ class ContentDrawerState(playingChannel: LiveChannel?) {
     var videoKind by mutableStateOf<VideoKind?>(null)
     var videoSearch by mutableStateOf(false)
     var videoWorkId by mutableStateOf<String?>(null)
+    var applicationDetailsId by mutableStateOf<String?>(null)
+    var applicationId by mutableStateOf<String?>(null)
     var focusSettings by mutableStateOf(false)
     var settingsCategory by mutableStateOf(SettingsCategory.GENERAL)
 
@@ -106,11 +107,29 @@ fun ContentDrawer(
         ?: channels.firstOrNull { it.id == playingChannel?.id }?.id
         ?: channels.firstOrNull()?.id
 
+    // EPG is contextual to the focused channel. Opening it never moves channel focus.
+    LaunchedEffect(state.section,state.column,selectedChannelId,epg,nowMs) {
+        if (state.section == Section.LIVE && state.column == 2) {
+            state.liveScheduleId = channels.firstOrNull { it.id == selectedChannelId }
+                ?.takeIf { epg.getEpgChannel(it)?.programmes?.any { programme -> programme.endAt > nowMs } == true }?.id
+        } else if (state.section != Section.LIVE || state.column < 2) state.liveScheduleId = null
+    }
+
     Box(modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.24f))) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
+            val maximumDrawerWidth = minOf(maxWidth * .94f,900.dp)
+            val liveWidth = minOf(640.dp,(maximumDrawerWidth - 236.dp).coerceAtLeast(360.dp))
+            val liveContentWidth = liveWidth - 80.dp
+            val applicationListWidth = liveContentWidth * (160f/508f) + 64.dp
+            val drawerWidth = when {
+                state.section == Section.APPS && state.applicationDetailsId == null -> 64.dp + liveContentWidth * (132f/508f) + applicationListWidth
+                state.section == Section.APPS -> 800.dp
+                state.section == Section.LIVE && state.liveScheduleId == null -> liveWidth
+                else -> 900.dp
+            }
             Column(
                 Modifier
-                    .width(minOf(maxWidth * 0.94f, if (state.section != Section.LIVE || state.liveScheduleId != null) 900.dp else 640.dp))
+                    .width(minOf(maxWidth * 0.94f, drawerWidth))
                     .fillMaxHeight()
                     .background(DrawerBackground)
                     .padding(horizontal = 24.dp, vertical = 20.dp)
@@ -126,39 +145,38 @@ fun ContentDrawer(
                     Spacer(Modifier.width(10.dp))
                     Text(AppConstants.APP_NAME, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.width(12.dp))
-                    Text(when (state.section) { Section.SETTINGS -> "设置"; Section.VIDEOS -> "影视"; else -> "直播" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(state.section.title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.weight(1f))
-                    nowPlayingTitle?.let { title ->
+                    nowPlayingTitle?.takeIf { state.section != Section.APPS }?.let { title ->
                         Icon(Icons.Default.PlayArrow, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(4.dp))
                         Text(title, style = MaterialTheme.typography.labelMedium, maxLines = 1,
                             overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp))
                         Spacer(Modifier.width(16.dp))
                     }
-                    Text(when (state.section) { Section.SETTINGS -> "播放源与偏好"; Section.VIDEOS -> "${vodState.works.size} 部影片"; else -> "${playlist.channels.size} 个频道" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(when (state.section) { Section.APPS -> "OK 打开 · → 详情"; Section.SETTINGS -> "播放源与偏好"; Section.VIDEOS -> "${vodState.works.size} 部影片"; else -> "${playlist.channels.size} 个频道" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(Modifier.height(24.dp))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Column(Modifier.weight(132f).fillMaxHeight()) {
-                        ColumnHeading("内容", "2")
+                    Column((if (state.section == Section.LIVE || state.section == Section.APPS) Modifier.width(liveContentWidth * (132f/508f)) else Modifier.weight(132f)).fillMaxHeight().testTag("drawer-section-column")) {
+                        ColumnHeading("内容", "3")
                         BrowseList(
                             entries = listOf(
                                 BrowseEntry.Navigation(Section.LIVE, providerCount, playingChannel != null),
                                 BrowseEntry.Navigation(Section.VIDEOS, vodSources.count { it.isEnabled }, playingVideo != null),
+                                BrowseEntry.Category(BrowseCategory(Section.APPS.key, Section.APPS.title)),
                             ),
-                            selectedId = if (state.section == Section.VIDEOS) VOD_ENTRY else LIVE_AGGREGATE_ID,
+                            selectedId = state.section.key,
                             contextKey = "providers",
                             active = state.column == 0 && !state.focusSettings,
                             focusRequest = state.focusRequest,
                             onFocused = {
                                 state.focusSettings = false
-                                if (it == VOD_ENTRY) state.section = Section.VIDEOS
-                                else state.section = Section.LIVE
+                                state.section = Section.entries.first { section -> section.key == it }
                             },
                             onSelected = {
                                 state.focusSettings = false
-                                if (it == VOD_ENTRY) state.section = Section.VIDEOS
-                                else state.section = Section.LIVE
+                                state.section = Section.entries.first { section -> section.key == it }
                                 state.enterColumn(1)
                             },
                             onLeft = {},
@@ -190,7 +208,17 @@ fun ContentDrawer(
                                 .columnKeys(onLeft = {}, onRight = { state.section = Section.SETTINGS; state.enterColumn(1) }),
                         )
                     }
-                    if (state.section == Section.SETTINGS) {
+                    if (state.section == Section.APPS) {
+                        me.lsong.mytv.ui.apps.InstalledAppsPanel(
+                            selectedId = state.applicationId, active = state.column == 1, focusRequest = state.focusRequest,
+                            onFocused = { state.applicationId = it }, onLeft = { state.enterColumn(0) },
+                            detailsId = state.applicationDetailsId, detailsActive = state.column == 2,
+                            onDetails = { state.applicationDetailsId = it; state.enterColumn(2) },
+                            onCloseDetails = { state.applicationDetailsId = null; state.enterColumn(1) },
+                            listWidth = applicationListWidth,
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else if (state.section == Section.SETTINGS) {
                         Column(Modifier.weight(160f).fillMaxHeight()) {
                             ColumnHeading("设置分类", "${SettingsCategory.entries.size}")
                             BrowseList(
@@ -259,7 +287,7 @@ fun ContentDrawer(
                             }
                         }
                     } else {
-                    Column(Modifier.weight(160f).fillMaxHeight()) {
+                    Column(Modifier.width(liveContentWidth * (160f/508f)).fillMaxHeight().testTag("drawer-live-group-column")) {
                         ColumnHeading("分组", "${groups.size}")
                         BrowseList(
                             entries = groups.map { BrowseEntry.Category(BrowseCategory(it.id, it.title, "${it.channels.size} 个频道")) },
@@ -274,7 +302,7 @@ fun ContentDrawer(
                             emptyMessage = "暂无分组",
                         )
                     }
-                    Column(Modifier.weight(216f).fillMaxHeight().containFocus()) {
+                    Column(Modifier.width(liveContentWidth * (216f/508f)).fillMaxHeight().containFocus().testTag("drawer-live-channel-column")) {
                         ColumnHeading(group?.title ?: "频道", "${channels.size}")
                         BrowseList(
                             entries = channels.map {
@@ -290,17 +318,17 @@ fun ContentDrawer(
                             onFocused = { state.channelIds[channelContext] = it },
                             onSelected = { id -> channels.firstOrNull { it.id == id }?.let(onPlay) },
                             onLeft = { state.enterColumn(1) },
-                            onRight = { state.liveScheduleId = selectedChannelId; state.enterColumn(3) },
+                            onRight = { if (state.liveScheduleId != null) state.enterColumn(3) },
                             emptyMessage = if (playlist.isLoading) "正在加载频道…" else playlist.error ?: if (providerCount == 0) "在设置中添加直播源" else "这个分组还没有频道",
                         )
                     }
                     if (state.liveScheduleId != null) {
                         val scheduleChannel = channels.firstOrNull { it.id == state.liveScheduleId }
-                        if (scheduleChannel != null) Column(Modifier.weight(280f).fillMaxHeight().containFocus()) {
+                        if (scheduleChannel != null) Column(Modifier.weight(1f).fillMaxHeight().containFocus().testTag("drawer-live-epg-column")) {
                             ColumnHeading("节目单", scheduleChannel.title)
                             me.lsong.mytv.ui.live.LiveSchedulePanel(scheduleChannel, epg.getEpgChannel(scheduleChannel),
                                 state.column == 3, state.focusRequest, { onPlay(scheduleChannel) },
-                                { state.liveScheduleId = null; state.enterColumn(2) })
+                                { state.enterColumn(2) })
                         }
                     }
                     }

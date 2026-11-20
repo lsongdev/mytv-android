@@ -7,7 +7,7 @@ import me.lsong.mytv.domain.playback.PlaybackResource
 fun normalizeVideoText(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
     .lowercase().replace(Regex("[\\p{P}\\p{Z}\\s]+"), "")
 
-private fun chineseNumber(value: String): Int? {
+internal fun parseVideoNumber(value: String): Int? {
     value.toIntOrNull()?.let { return it }
     val digits = mapOf('零' to 0, '一' to 1, '二' to 2, '两' to 2, '三' to 3, '四' to 4, '五' to 5, '六' to 6, '七' to 7, '八' to 8, '九' to 9)
     if (value == "十") return 10
@@ -19,7 +19,7 @@ private fun chineseNumber(value: String): Int? {
 }
 
 private fun season(title: String): Int? {
-    Regex("第([零一二两三四五六七八九十0-9]+)季").find(title)?.groupValues?.get(1)?.let { return chineseNumber(it) }
+    Regex("第([零一二两三四五六七八九十0-9]+)季").find(title)?.groupValues?.get(1)?.let { return parseVideoNumber(it) }
     return Regex("(?:season\\s*|\\bs)([0-9]{1,2})\\b", RegexOption.IGNORE_CASE).find(title)?.groupValues?.get(1)?.toIntOrNull()
 }
 private fun edition(item: ProviderVideoRecord): String = listOf("导演剪辑", "加长", "未删减", "修复", "重制", "剧场版", "粤语", "国语", "普通话", "英语", "原声")
@@ -86,7 +86,7 @@ object VideoAggregator {
         }
         val date = Regex("^(20[0-9]{2})[-/.]?([01][0-9])[-/.]?([0-3][0-9])").find(text)
         if (date != null) { val d = date.groupValues.drop(1).joinToString(""); return "date:$d" to d.toLong() }
-        val number = Regex("^第?\\s*([0-9零一二两三四五六七八九十]+)\\s*[集话期](?:.*)?$").find(text)?.groupValues?.get(1)?.let(::chineseNumber)
+        val number = Regex("^第?\\s*([0-9零一二两三四五六七八九十]+)\\s*[集话期](?:.*)?$").find(text)?.groupValues?.get(1)?.let(::parseVideoNumber)
             ?: Regex("^(?:ep?\\s*)?([0-9]+)$", RegexOption.IGNORE_CASE).find(text)?.groupValues?.get(1)?.toIntOrNull()
         if (number != null) { val s = season(item.title) ?: 1; return "s${s}e$number" to s * 1_000_000L + number }
         // Unrecognized labels stay provider-specific; list position is never an episode identity.

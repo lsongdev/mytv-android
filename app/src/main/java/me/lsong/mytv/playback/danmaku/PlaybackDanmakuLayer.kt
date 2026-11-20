@@ -12,24 +12,25 @@ import me.lsong.mytv.ui.danmaku.DanmakuViewModel
 
 @Composable
 fun PlaybackDanmakuLayer(player: PlaybackState, selection: VideoPlaybackSelection?, speed: Float,
-    model: DanmakuViewModel, visible: Boolean, preview: Boolean) {
+    model: DanmakuViewModel, visible: Boolean, suspended: Boolean) {
     val state by model.state.collectAsState()
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
     var position by remember { mutableLongStateOf(0L) }
     LaunchedEffect(selection?.details?.work?.id, selection?.partId) { model.setVideo(selection) }
     val active = selection != null && state.preferences.enabled && lifecycle.isAtLeast(Lifecycle.State.STARTED)
-    LaunchedEffect(active) {
-        if (active) while (true) {
+    LaunchedEffect(active,suspended) {
+        if (active && suspended) { position = player.positionMs; model.advance(position) }
+        if (active && !suspended) while (true) {
             position = player.positionMs
             model.advance(position)
             delay(250)
         }
     }
     if (active && visible) DanmakuOverlay(
-        comments = state.comments, positionMs = (position - state.preferences.offsetMs).coerceAtLeast(0),
-        isPlaying = !player.isPaused, buffering = player.isBuffering && !player.isPaused, speed = speed,
+        comments = state.comments, positionMs = position,
+        isPlaying = !suspended && !player.isPaused, buffering = !suspended && player.isBuffering && !player.isPaused, speed = speed,
         visible = true, settings = state.preferences.rendering,
-        previewMode = preview, areaFraction = state.preferences.area,
-        datasetKey = "${model.datasetKey}|${state.preferences.offsetMs}", modifier = Modifier.fillMaxSize(),
+        areaFraction = state.preferences.area,
+        datasetKey = model.datasetKey, clearSignal = state.renderRevision, modifier = Modifier.fillMaxSize(),
     )
 }

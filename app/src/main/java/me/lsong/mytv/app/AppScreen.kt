@@ -27,6 +27,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import me.lsong.mytv.data.live.LiveCatalogRepository
 
 import me.lsong.mytv.ui.browser.ContentDrawerState
@@ -43,14 +50,16 @@ import me.lsong.mytv.ui.input.onRemoteKeyActions
 fun AppScreen(
     modifier: Modifier = Modifier,
     appViewModel: AppViewModel = viewModel(),
+    homeRequest: Int = 0,
 ) {
-    AppContent(modifier = modifier, liveCatalog = appViewModel.liveCatalog)
+    AppContent(modifier = modifier, liveCatalog = appViewModel.liveCatalog, homeRequest = homeRequest)
 }
 
 @Composable
 fun AppContent(
     modifier: Modifier = Modifier,
     liveCatalog: LiveCatalogRepository,
+    homeRequest: Int = 0,
     settingsViewModel: SettingsViewModel = viewModel(),
     providerSettings: ProviderSettingsViewModel = viewModel(),
     videoLibrary: VideoLibraryViewModel = viewModel(factory = AppContainer.videoViewModelFactory),
@@ -70,6 +79,7 @@ fun AppContent(
         videoPlayerState = videoPlayerState,
     )
 
+    var restoringPlayback by remember { mutableStateOf(true) }
     var drawerVisible by remember { mutableStateOf(liveCatalog.channels.isEmpty()) }
     var channelDetailsVisible by remember { mutableStateOf(false) }
     var controlsVisible by remember { mutableStateOf(false) }
@@ -81,14 +91,68 @@ fun AppContent(
     val showMenu: () -> Unit = { controlsVisible = false; run { drawerVisible = true; channelDetailsVisible = false } }
 
     val channels = liveCatalog.channels
-    LaunchedEffect(channels) {
-        if (playback.videoSelection == null && playback.currentChannel.resources.map { it.uri }.isEmpty() && channels.isNotEmpty()) {
-            playback.changeCurrentChannel(channels.getOrElse(me.lsong.mytv.data.preferences.AppPreferences.iptvLastIptvIdx) { channels.first() })
+    LaunchedEffect(channels,restoringPlayback) {
+        if (!restoringPlayback) {
+            if (!playback.hasMedia && channels.isNotEmpty()) {
+                playback.changeCurrentChannel(channels.getOrElse(AppPreferences.iptvLastIptvIdx) { channels.first() })
+                drawerVisible = false
+            } else playback.reconcileLiveCatalog()
         }
     }
 
     val drawerState = remember(liveCatalog) {
         ContentDrawerState(playback.currentChannel.takeIf { it.resources.map { it.uri }.isNotEmpty() })
+    }
+
+    LaunchedEffect(homeRequest, restoringPlayback) {
+        if (homeRequest > 0 && !restoringPlayback) {
+            danmakuPanel = false
+            showMenu()
+            drawerState.section = me.lsong.mytv.ui.navigation.Section.APPS
+            drawerState.focusSettings = false
+            drawerState.enterColumn(0)
+        }
+    }
+
+    LaunchedEffect(playback) {
+        val saved = runCatching { AppContainer.playbackSessions.load()?.available(AppContainer.providerConfigs.providers.value) }.getOrNull()
+        if (saved != null && playback.restore(saved)) {
+            drawerVisible = false
+            controlsVisible = saved.paused
+            if (saved.video != null) drawerState.section = me.lsong.mytv.ui.navigation.Section.VIDEOS
+        }
+        restoringPlayback = false
+        saved?.video?.let { restored -> launch {
+            val semaphore = Semaphore(2)
+            val client = me.lsong.mytv.data.providers.maccms.MacCmsVideoProvider(storage = AppContainer.providerStorage)
+            val records = supervisorScope { restored.details.work.variants.map { record -> async {
+                val provider = AppContainer.providerConfigs.providers.value.firstOrNull { it.id == record.ref.providerId && it.isEnabled }
+                if (provider == null) null else try { semaphore.withPermit { client.details(provider,record.ref.remoteId) } }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { null }
+            } }.awaitAll().filterNotNull() }
+            if (records.isNotEmpty()) {
+                val details = withContext(Dispatchers.Default) { me.lsong.mytv.domain.video.VideoAggregator.details(restored.details.work,records) }
+                if (playback.videoSelection?.partId == restored.partId) playback.refreshRestoredVideo(details)
+            }
+        } }
+    }
+    val saveSession by rememberUpdatedState(newValue = {
+        if (!restoringPlayback) playback.snapshot(if (danmakuPanel) !resumeAfterDanmaku else null)?.let { AppContainer.playbackSessions.save(it) }
+    })
+    LaunchedEffect(restoringPlayback) {
+        if (!restoringPlayback) while (true) { saveSession(); delay(5_000) }
+    }
+    LaunchedEffect(restoringPlayback,playback) {
+        if (!restoringPlayback) snapshotFlow { Triple(playback.videoSelection?.let { "${it.details.work.id}|${it.partId}|${it.resourceId}" }
+            ?: "${playback.currentChannel.id}|${playback.currentResourceIndex}",videoPlayerState.isPaused,playback.videoSpeed) }
+            .collectLatest { saveSession() }
+    }
+    val playbackLifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(playbackLifecycle) {
+        val observer = LifecycleEventObserver { _,event -> if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) saveSession() }
+        playbackLifecycle.addObserver(observer)
+        onDispose { saveSession(); playbackLifecycle.removeObserver(observer) }
     }
 
     BackHandler {
@@ -139,7 +203,7 @@ fun AppContent(
     )
 
     PlaybackDanmakuLayer(videoPlayerState, playback.videoSelection, playback.videoSpeed, danmaku,
-        visible = !drawerVisible, preview = danmakuPanel)
+        visible = !drawerVisible, suspended = danmakuPanel)
     if (controlsVisible) PlayerControls(
         videoPlayerState, playback.playingTitle.orEmpty(), playback.videoSelection == null,
         playback.videoSpeed,
@@ -149,6 +213,8 @@ fun AppContent(
             "${it.resources.getOrNull(playback.currentResourceIndex)?.providerName.orEmpty()} · ${playback.currentResourceIndex + 1}/${it.resources.map { it.uri }.size}"
         },
         onResource = playback::nextResource,
+        aspectRatioLabel = settingsViewModel.videoPlayerAspectRatio.title,
+        onAspectRatio = settingsViewModel::cycleVideoAspectRatio,
         liveProgramme = if (playback.videoSelection == null && liveOptions.showProgrammes) {
             val schedule = with(me.lsong.mytv.domain.epg.EpgList) { epg.programmes.getEpgChannel(playback.currentChannel) }
             val current = schedule?.programmes?.firstOrNull { epgClock >= it.startAt && epgClock < it.endAt }
@@ -156,7 +222,7 @@ fun AppContent(
             listOfNotNull(current?.let { "正在播放 · ${it.title}" }, next?.let { "接下来 · ${it.title}" }).joinToString("    ").takeIf(String::isNotBlank)
         } else null,
         restoreFocus = controlsFocusRequest,
-        danmakuLabel = if (playback.videoSelection == null) null else if (!danmakuState.preferences.enabled) "弹幕 · 关" else "弹幕 · ${danmakuState.selected?.providerName ?: "开"}",
+        danmakuLabel = if (playback.videoSelection == null) null else if (!danmakuState.preferences.enabled) "弹幕 · 关" else "弹幕 · ${danmakuState.activeSources.size} 源",
         onDanmakuToggle = danmaku::toggle,
         onDanmakuSettings = {
             resumeAfterDanmaku = !videoPlayerState.isPaused

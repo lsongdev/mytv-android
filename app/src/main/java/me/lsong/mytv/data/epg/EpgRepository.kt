@@ -15,7 +15,7 @@ import me.lsong.mytv.domain.epg.*
 import me.lsong.mytv.domain.live.ProviderLiveCatalog
 import me.lsong.mytv.domain.provider.*
 
-data class EpgFeed(val url: String, val owners: Set<String> = emptySet()) {
+data class EpgFeed(val url: String, val owners: Set<String> = emptySet(), val fallback: Boolean = false) {
     val provider get() = ProviderConfig(id = "epg:" + url, name = "节目单", url = url, kind = ProviderKind.M3U)
 }
 data class EpgState(val programmes: EpgList = EpgList(), val feeds: List<EpgFeed> = emptyList(), val loading: Boolean = false)
@@ -27,8 +27,8 @@ internal fun epgFeeds(catalogs: List<ProviderLiveCatalog>, options: LiveOptions)
         // An explicitly configured feed also applies globally.
         if (url !in options.epgUrls) feeds.getOrPut(url) { linkedSetOf() }.add(catalog.provider.id)
     } }
-    if (feeds.isEmpty() && options.useDefaultEpg) feeds[AppConstants.EPG_XML_URL] = linkedSetOf()
-    return feeds.map { EpgFeed(it.key,it.value) }
+    val result = feeds.map { EpgFeed(it.key,it.value) }
+    return if (options.useDefaultEpg && AppConstants.EPG_XML_URL !in feeds) result + EpgFeed(AppConstants.EPG_XML_URL,fallback = true) else result
 }
 
 /** Cache first, independent feed failures, and bounded parallel refresh outside composition. */
@@ -46,8 +46,13 @@ class EpgRepository(val preferences: LivePreferences, val storage: ProviderStora
                 if (!options.epgEnabled) { mutable.value = EpgState(); return@collectLatest }
                 val documents = linkedMapOf<String,EpgDocument>()
                 feeds.forEach { feed -> storage.cached(feed.provider,"epg",EpgDocument.serializer(),maxBytes = 32_000_000)?.value?.let { documents[feed.url] = it } }
-                suspend fun publish(loading: Boolean) { mutable.value = EpgState(withContext(Dispatchers.Default) {
-                    EpgList(feeds.flatMap { feed -> documents[feed.url]?.channels.orEmpty().flatMap { channel ->
+                fun hasGuide(document: EpgDocument?) = document?.channels?.any { channel -> channel.programmes.any { it.endsAt > System.currentTimeMillis() } } == true
+                fun primaryAvailable() = feeds.filterNot { it.fallback }.any { hasGuide(documents[it.url]) }
+                suspend fun publish(loading: Boolean) {
+                    val snapshot = documents.toMap()
+                    val activeFeeds = feeds.filter { !it.fallback || !primaryAvailable() }
+                    mutable.value = EpgState(withContext(Dispatchers.Default) {
+                    EpgList(activeFeeds.flatMap { feed -> snapshot[feed.url]?.channels.orEmpty().flatMap { channel ->
                         (if (feed.owners.isEmpty()) listOf(null) else feed.owners.toList()).map { owner ->
                             EpgChannel(channel.id,owner,channel.title,channel.programmes.map { EpgProgramme(it.channelId,it.startsAt,it.endsAt,it.title) },channel.names,channel.icon?.let { me.lsong.mytv.data.providers.m3u.resolvePlaylistUrl(feed.url,it) })
                         }
@@ -58,15 +63,18 @@ class EpgRepository(val preferences: LivePreferences, val storage: ProviderStora
                 consumedRevision = revision
                 while (currentCoroutineContext().isActive) {
                     val permits = Semaphore(2)
-                    val results = coroutineScope { feeds.map { feed -> async { permits.withPermit {
-                        try { feed.url to storage.get(feed.provider,"epg",EpgDocument.serializer(),freshFor = options.refreshHours * 3600_000L,force = force,maxBytes = 32_000_000) {
+                    suspend fun fetch(targets: List<EpgFeed>) = coroutineScope { targets.map { feed -> launch { permits.withPermit {
+                        val document = try { storage.get(feed.provider,"epg",EpgDocument.serializer(),freshFor = options.refreshHours * 3600_000L,force = force,maxBytes = 32_000_000) {
                             val document = client.fetch(MediaEndpoint(feed.url))
                             val now = System.currentTimeMillis()
                             document.copy(channels = document.channels.map { channel -> channel.copy(programmes = channel.programmes.filter { it.endsAt > now - 86400_000 && it.startsAt < now + 3 * 86400_000L }) })
                         } } catch (cancelled: CancellationException) { throw cancelled }
-                        catch (_: Exception) { feed.url to null }
-                    } } }.awaitAll() }
-                    results.forEach { (url,document) -> if (document != null) documents[url] = document }
+                        catch (_: Exception) { null }
+                        if (document != null) documents[feed.url] = document
+                        publish(true)
+                    } } }.joinAll() }
+                    fetch(feeds.filterNot { it.fallback })
+                    if (!primaryAvailable()) fetch(feeds.filter { it.fallback })
                     publish(false); force = false
                     // Sleep until the earliest feed expires or its backoff ends. Avoid reading
                     // and deserializing large cached XMLTV documents every minute.

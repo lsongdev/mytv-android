@@ -49,25 +49,28 @@ fun DanmakuOverlay(
 
         // 显示密度：数据层按稳定散列抽样（沿用原口径），再映射成引擎 items。
         // 单趟 mapNotNull：免「filter 中间列表 + 二次遍历」，分片加载每到一块只过一遍累积窗口。
-        val items by androidx.compose.runtime.produceState(emptyList<DanmakuItem>(), comments, settings.densityPct) {
+        val data by androidx.compose.runtime.produceState(DanmakuRenderData(emptyList(),clearSignal), comments, settings.densityPct, clearSignal) {
             value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                comments.mapNotNull { c ->
+                DanmakuRenderData(comments.mapNotNull { c ->
                     val keep = settings.densityPct >= 100 || (((c.timeMs * 31 + c.content.hashCode()).toInt() and 0x7fffffff) % 100) < settings.densityPct
                     if (keep) c.toEngineItem() else null
-                }
+                },clearSignal)
             }
         }
 
-        LaunchedEffect(view, items) { view?.submitItems(items) }
+        val appliedSignal = remember(view) { intArrayOf(clearSignal) }
+        LaunchedEffect(view, data) {
+            view?.submitItems(data.items,clear = data.clearSignal != appliedSignal[0])
+            appliedSignal[0] = data.clearSignal
+        }
         LaunchedEffect(view, settings, density, visible, areaFraction) {
             view?.submitConfig(buildEngineConfig(settings, density, visible, areaFraction))
         }
         LaunchedEffect(view, positionMs, isPlaying, buffering, speed, previewMode) {
             view?.submitPlayback(positionMs, isPlaying, speed, previewMode, buffering)
         }
-        // 切匹配信号自增 → 硬清屏（首帧 clearSignal=0 不触发）。
-        LaunchedEffect(view, clearSignal) {
-            if (clearSignal > 0) view?.submitClear()
-        }
+
     }
 }
+
+private data class DanmakuRenderData(val items: List<DanmakuItem>, val clearSignal: Int)

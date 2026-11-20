@@ -24,4 +24,13 @@ class EpgMatchingTest {
         assertEquals(feed,EpgList(listOf(feed)).getEpgChannel(LiveChannel(name = "ＣＣＴＶ－１ 高清")))
         assertNull(EpgList(listOf(feed)).getEpgChannel(LiveChannel(name = "CCTV 10")))
     }
+    @Test fun staleScopedOrDuplicateFeedsDoNotHideCurrentProgrammes() {
+        val now = System.currentTimeMillis()
+        val stale = EpgChannel(id = "one",providerId = "own",title = "频道",programmes = listOf(EpgProgramme("one",now-20000,now-10000,"旧节目")))
+        val current = stale.copy(programmes = listOf(EpgProgramme("one",now-1000,now+10000,"当前节目")))
+        val channel = LiveChannel(name = "频道",epgBindings = listOf(EpgBinding("own","one")))
+        assertEquals(current,EpgList(listOf(current,stale)).getEpgChannel(channel))
+        assertEquals(current.copy(providerId = null),EpgList(listOf(stale,current.copy(providerId = null))).getEpgChannel(channel))
+    }
+
 }

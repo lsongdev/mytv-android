@@ -24,6 +24,7 @@ import org.junit.Test
 
 class DanmakuIntegrationTest {
     @get:Rule val compose = createComposeRule()
+    @org.junit.Before fun keepDisplayAwake() = keepDanmakuTestDisplayAwake()
     private class Provider : DanmakuProvider {
         override val id = "tencent"; override val name = "测试弹幕源"
         val windows = mutableListOf<Int>()
@@ -51,13 +52,13 @@ class DanmakuIntegrationTest {
             model.toggle()
         }
         compose.waitUntil(10_000) { model.state.value.comments.isNotEmpty() && !model.state.value.loading }
-        assertEquals("ep1",model.state.value.episode?.episodeId)
+        assertEquals("ep1",model.state.value.sources.single().episode?.episodeId)
         assertTrue(provider.windows.containsAll(listOf(0,300)))
         compose.runOnIdle { model.advance(610_000) }
         compose.waitUntil(10_000) { provider.windows.containsAll(listOf(600,900)) }
         compose.runOnIdle { model.setVideo(VideoPlaybackSelection(details,"s1e2",resource.id)) }
         compose.waitUntil(10_000) { !model.state.value.loading }
-        assertNull(model.state.value.episode)
+        assertNull(model.state.value.sources.single().episode)
         compose.setContent { TvTheme { DanmakuSettingsPanel(model,{}) } }
         compose.onNodeWithTag("danmaku-settings").assertIsDisplayed()
         compose.runOnIdle { model.toggle() }

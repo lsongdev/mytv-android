@@ -34,6 +34,7 @@ abstract class PlayerEngine(
     abstract val durationMs: Long
 
     open var speed: Float = 1f
+    open fun setDisplayAspectRatio(ratio: Float?) {}
 
     abstract fun play()
 

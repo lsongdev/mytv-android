@@ -13,6 +13,7 @@ import androidx.test.espresso.Espresso
 
 import me.lsong.mytv.ui.browser.ContentDrawerState
 import me.lsong.mytv.ui.browser.menuPreviewPlaylists
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -31,6 +32,12 @@ class ProviderSettingsTest {
 
     private fun click(tag: String) {
         compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.OnClick) { it() }
+        compose.waitForIdle()
+    }
+
+    private fun editSource(id: String) {
+        compose.onNodeWithTag("source:$id").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        compose.onNodeWithTag("source:$id").performKeyInput { pressKey(Key.DirectionRight) }
         compose.waitForIdle()
     }
 
@@ -101,16 +108,39 @@ class ProviderSettingsTest {
         compose.onNodeWithText("测试影视源").assertIsDisplayed()
     }
 
+    @Test fun liveSourceOkTogglesAndRightEdits() = verifySourceKeys(ProviderKind.M3U, SettingsCategory.LIVE)
+
+    @Test fun videoSourceOkTogglesAndRightEdits() = verifySourceKeys(ProviderKind.MAC_CMS, SettingsCategory.VIDEOS)
+
+    private fun verifySourceKeys(kind: ProviderKind, category: SettingsCategory) {
+        val repo = repository()
+        val source = ProviderConfig("keys", "按键测试源", "https://example.com/source", kind)
+        repo.save(source)
+        showSettings(ProviderSettingsViewModel(repo), category)
+        val row = compose.onNodeWithTag("source:keys")
+        row.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        row.performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.runOnIdle { assertEquals(source.copy(isEnabled = false), repo.providers.value.single()) }
+        row.assertIsFocused().assertTextContains("已停用")
+        compose.onNodeWithTag("source-name").assertDoesNotExist()
+        row.performKeyInput { pressKey(Key.DirectionCenter) }
+        compose.runOnIdle { assertEquals(source, repo.providers.value.single()) }
+        row.assertIsFocused().assertTextContains("已启用")
+        row.performKeyInput { pressKey(Key.DirectionRight) }
+        compose.onNodeWithTag("source-name").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(source, repo.providers.value.single()) }
+    }
+
     @Test fun editingAndDeletingAConfiguredSourceUpdatesTheList() {
         val repo = repository()
         repo.save(ProviderConfig("vod", "旧名称", "https://example.com/vod", ProviderKind.MAC_CMS))
         val model = ProviderSettingsViewModel(repo)
         showSettings(model, SettingsCategory.VIDEOS)
-        click("source:vod")
+        editSource("vod")
         compose.onNodeWithTag("source-name").performTextReplacement("新名称")
         compose.onNodeWithTag("save-source").performScrollTo(); click("save-source")
         compose.onNodeWithText("新名称").assertIsDisplayed()
-        click("source:vod")
+        editSource("vod")
         compose.onNodeWithTag("delete-source").performScrollTo(); click("delete-source")
         compose.onNodeWithTag("confirm-delete-source").performScrollTo(); click("confirm-delete-source")
         compose.runOnIdle { assertTrue(repo.providers.value.isEmpty()) }

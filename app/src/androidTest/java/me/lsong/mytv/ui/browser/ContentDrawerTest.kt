@@ -40,12 +40,23 @@ class ContentDrawerTest {
             id = playing.name,title = playing.title,programmes = listOf(me.lsong.mytv.domain.epg.EpgProgramme(
                 channelId = playing.name,startAt = now-60_000,endAt = now+60_000,title = "测试当前节目")))))
         compose.setContent { TvTheme { ContentDrawer(catalog,playing,state,{}, {}, {},epg = epg,nowMs = now) } }
+        compose.waitUntil(5000) { state.liveScheduleId == playing.id }
+        compose.onNodeWithTag("drawer-entry:${playing.id}").assertIsFocused()
+        val before = compose.onNodeWithTag("drawer-live-channel-column").fetchSemanticsNode().boundsInRoot
+        press(Key.DirectionDown)
+        compose.runOnIdle { assertNull(state.liveScheduleId); assertEquals(2,state.column) }
+        val withoutEpg = compose.onNodeWithTag("drawer-live-channel-column").fetchSemanticsNode().boundsInRoot
+        assertEquals(before.left,withoutEpg.left,.5f); assertEquals(before.width,withoutEpg.width,.5f)
+        press(Key.DirectionUp)
+        compose.waitUntil(5000) { state.liveScheduleId == playing.id }
+        val after = compose.onNodeWithTag("drawer-live-channel-column").fetchSemanticsNode().boundsInRoot
+        assertEquals(before.left,after.left,.5f); assertEquals(before.width,after.width,.5f)
         press(Key.DirectionRight)
         compose.runOnIdle { assertEquals(3,state.column); assertEquals(playing.id,state.liveScheduleId) }
         compose.onNodeWithTag("drawer-entry:${playing.id}").assertExists()
         compose.onNodeWithText("播放 · ${playing.title}").assertIsFocused()
         press(Key.DirectionLeft)
-        compose.runOnIdle { assertNull(state.liveScheduleId); assertEquals(2,state.column) }
+        compose.runOnIdle { assertEquals(playing.id,state.liveScheduleId); assertEquals(2,state.column) }
         compose.onNodeWithTag("drawer-entry:${playing.id}").assertIsFocused()
     }
 
@@ -113,6 +124,7 @@ class ContentDrawerTest {
         compose.onNodeWithTag("drawer-entry:live").assertIsFocused()
         press(Key.DirectionDown)
         press(Key.DirectionDown)
+        press(Key.DirectionDown)
         compose.onNodeWithTag("drawer-settings").assertIsFocused()
         press(Key.DirectionCenter)
         compose.runOnIdle { assertEquals(Section.SETTINGS, state.section); assertEquals(1, state.column); assertFalse(closed) }
@@ -148,7 +160,39 @@ class ContentDrawerTest {
         press(Key.DirectionDown)
         compose.onNodeWithTag("drawer-entry:videos").assertIsFocused()
         press(Key.DirectionDown)
+        compose.onNodeWithTag("drawer-entry:apps").assertIsFocused()
+        press(Key.DirectionDown)
         compose.onNodeWithTag("drawer-settings").assertIsFocused()
+    }
+
+    @Test fun applicationsEntryOpensListAndLeftRestoresNavigation() {
+        val state = ContentDrawerState(null)
+        compose.setContent { TvTheme { ContentDrawer(mergeLiveCatalogs(emptyList()), null, state, {}, {}, {}) } }
+        val groupWidth = compose.onNodeWithTag("drawer-live-group-column").fetchSemanticsNode().boundsInRoot.width
+        press(Key.DirectionDown)
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("drawer-entry:apps").assertIsFocused()
+        press(Key.DirectionCenter)
+        compose.runOnIdle { assertEquals(Section.APPS, state.section); assertEquals(1, state.column) }
+        compose.onNodeWithText("已安装应用").assertIsDisplayed()
+        val appWidth = compose.onNodeWithTag("drawer-app-list-column").fetchSemanticsNode().boundsInRoot.width
+        assertTrue(appWidth > groupWidth)
+        compose.waitUntil(10_000) { state.applicationId != null }
+        val selected = state.applicationId
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("drawer-app-details-column").assertIsDisplayed()
+        compose.onNodeWithTag("drawer-entry:app-action:OPEN").assertIsFocused()
+        assertEquals(appWidth, compose.onNodeWithTag("drawer-app-list-column").fetchSemanticsNode().boundsInRoot.width, 1f)
+        press(Key.DirectionLeft)
+        compose.onNodeWithTag("drawer-app-details-column").assertDoesNotExist()
+        compose.onNodeWithTag("drawer-entry:$selected").assertIsFocused()
+        press(Key.DirectionRight)
+        androidx.test.espresso.Espresso.pressBack()
+        compose.waitForIdle()
+        compose.onNodeWithTag("drawer-app-details-column").assertDoesNotExist()
+        compose.onNodeWithTag("drawer-entry:$selected").assertIsFocused()
+        press(Key.DirectionLeft)
+        compose.onNodeWithTag("drawer-entry:apps").assertIsFocused()
     }
 
     @Test fun downAtTheBottomOfChannelsDoesNotEnterSettings() {

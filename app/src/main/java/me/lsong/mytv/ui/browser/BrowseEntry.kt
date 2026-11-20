@@ -11,6 +11,11 @@ sealed interface BrowseEntry {
     val subtitle: String? get() = null
     val playing: Boolean get() = false
 
+    data class Application(val app: me.lsong.mytv.data.apps.InstalledApp) : BrowseEntry {
+        override val id get() = app.id
+        override val title get() = app.title
+    }
+
     data class Navigation(val section: Section, val providerCount: Int, override val playing: Boolean = false) : BrowseEntry {
         override val id get() = section.key
         override val title get() = section.title

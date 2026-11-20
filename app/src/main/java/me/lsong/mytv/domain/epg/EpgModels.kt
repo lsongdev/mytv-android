@@ -44,8 +44,8 @@ data class EpgChannel(
 data class EpgList(
     val value: List<EpgChannel> = emptyList(),
 ) : List<EpgChannel> by value {
-    private val scopedIds = value.filter { it.providerId != null }.associateBy { it.providerId to it.id }
-    private val globalIds = value.filter { it.providerId == null }.associateBy { it.id }
+    private val scopedIds = value.filter { it.providerId != null }.groupBy { it.providerId to it.id }
+    private val globalIds = value.filter { it.providerId == null }.groupBy { it.id }
     private val nameIndex = buildMap<String,MutableList<EpgChannel>> {
         value.forEach { channel -> (listOf(channel.id,channel.title) + channel.names).map(::normalizeEpgName).distinct().forEach {
             getOrPut(it) { mutableListOf() }.add(channel)
@@ -53,16 +53,18 @@ data class EpgList(
     }
     companion object {
         fun EpgList.getEpgChannel(channel: LiveChannel): EpgChannel? {
-            channel.epgBindings.forEach { binding ->
-                scopedIds[binding.providerId to binding.remoteChannelId]?.let { return it }
+            val candidates = buildList {
+                channel.epgBindings.forEach { binding -> addAll(scopedIds[binding.providerId to binding.remoteChannelId].orEmpty()) }
+                channel.epgBindings.forEach { binding -> addAll(globalIds[binding.remoteChannelId].orEmpty()) }
+                val owners = channel.records.map { it.ref.providerId }.toSet()
+                val names = (listOf(channel.name,channel.title) + channel.records.flatMap { listOf(it.name,it.title) })
+                    .map(::normalizeEpgName).filter(String::isNotBlank).distinct()
+                names.forEach { name -> addAll(nameIndex[name].orEmpty().filter { it.providerId == null || it.providerId in owners }) }
             }
-            channel.epgBindings.forEach { binding -> globalIds[binding.remoteChannelId]?.let { return it } }
-            val owners = channel.records.map { it.ref.providerId }.toSet()
-            val names = (listOf(channel.name,channel.title) + channel.records.flatMap { listOf(it.name,it.title) })
-                .map(::normalizeEpgName).filter(String::isNotBlank).distinct()
-            return names.firstNotNullOfOrNull { name ->
-                nameIndex[name]?.firstOrNull { it.providerId == null || it.providerId in owners }
-            }
+            val now = System.currentTimeMillis()
+            return candidates.firstOrNull { epg -> epg.programmes.any { now >= it.startAt && now < it.endAt } }
+                ?: candidates.firstOrNull { epg -> epg.programmes.any { it.endAt > now } }
+                ?: candidates.firstOrNull()
         }
         /**
          * 获取指定频道的当前节目和下一个节目

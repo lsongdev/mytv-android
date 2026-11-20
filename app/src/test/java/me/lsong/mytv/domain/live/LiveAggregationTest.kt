@@ -57,4 +57,26 @@ class LiveAggregationTest {
         assertEquals("AptvPlayer-UA", merged.channels.single().resources[1].headers["User-Agent"])
         assertEquals("https://example.com/?a=1", merged.channels.single().resources[1].headers["Referer"])
     }
+    @Test fun sharedEpgNamesAndIdsDoNotCollapseDifferentYears() {
+        val records = listOf("春晚1983","春晚1984").map { title ->
+            M3uEntry(mapOf("tvg-name" to "春晚","tvg-id" to "gala","group-title" to "历年春晚"),title,"https://example.com/$title").toChannelRecord(provider("a"))
+        }
+        val catalog = mergeLiveCatalogs(listOf(ProviderLiveCatalog(provider("a"),records)))
+        assertEquals(2,catalog.channels.size)
+        assertEquals(2,records.map { it.ref }.distinct().size)
+        assertTrue(catalog.channels.all { it.resources.size == 1 && it.epgBindings.single().remoteChannelId == "gala" })
+    }
+    @Test fun matchingYearsMergeAcrossSourcesAndKeepIdentityWhenYearsAreAddedOrRemoved() {
+        val identities = InMemoryCatalogIdentityStore()
+        fun channel(id: String, year: Int) = M3uEntry(mapOf("tvg-name" to "春晚","group-title" to "历年春晚"),"春晚$year","https://$id.example/$year").toChannelRecord(provider(id))
+        fun catalog(years: List<Int>) = mergeLiveCatalogs(listOf(ProviderLiveCatalog(provider("a"),years.map { channel("a",it) }),
+            ProviderLiveCatalog(provider("b"),listOf(channel("b",1984)))),identities)
+        val before = catalog(listOf(1983,1984))
+        assertEquals(2,before.channels.size)
+        assertEquals(2,before.channels.first { it.title == "春晚1984" }.resources.size)
+        val after = catalog(listOf(1982,1983,1984))
+        assertEquals(before.channels.first { it.title == "春晚1984" }.id,after.channels.first { it.title == "春晚1984" }.id)
+        assertEquals(before.channels.first { it.title == "春晚1984" }.id,catalog(listOf(1984)).channels.single().id)
+    }
+
 }
