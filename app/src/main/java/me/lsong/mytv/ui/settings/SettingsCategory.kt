@@ -12,7 +12,7 @@ enum class SettingsCategory(val icon: ImageVector, val title: String) {
     GENERAL(Icons.Default.Settings, "常规"),
     LIVE(Icons.Default.LiveTv, "直播"),
     VIDEOS(Icons.Default.VideoLibrary, "影视"),
-    EPG(Icons.Default.Menu, "台标与节目单"),
+    EPG(Icons.Default.Menu, "节目单"),
     DANMAKU(Icons.Default.Menu, "弹幕"),
     ABOUT(Icons.Default.Info, "关于"),
 }

@@ -1,9 +1,7 @@
 package me.lsong.mytv.ui.apps
 
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.unit.Dp
@@ -17,21 +15,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import me.lsong.mytv.data.apps.InstalledApp
-import me.lsong.mytv.data.apps.loadInstalledApps
 import me.lsong.mytv.ui.browser.BrowseEntry
 import me.lsong.mytv.ui.browser.BrowseList
 import me.lsong.mytv.ui.browser.ColumnHeading
 
 @Composable
 internal fun InstalledAppsPanel(
+    snapshot: me.lsong.mytv.data.apps.InstalledAppsSnapshot,
+    onRefresh: () -> Unit,
     selectedId: String?,
     active: Boolean,
     focusRequest: Int,
@@ -45,40 +37,9 @@ internal fun InstalledAppsPanel(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var revision by remember { mutableIntStateOf(0) }
-    var apps by remember { mutableStateOf<List<InstalledApp>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
-    DisposableEffect(context, lifecycle) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) revision++
-        }
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) { revision++ }
-        }
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addAction(Intent.ACTION_PACKAGE_REMOVED)
-            addAction(Intent.ACTION_PACKAGE_CHANGED)
-            addDataScheme("package")
-        }
-        lifecycle.addObserver(observer)
-        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-        onDispose { lifecycle.removeObserver(observer); context.unregisterReceiver(receiver) }
-    }
-    LaunchedEffect(context, revision) {
-        loading = true
-        try {
-            apps = withContext(Dispatchers.IO) { loadInstalledApps(context) }
-            error = null
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            error = "无法读取应用列表，请重新进入重试"
-        }
-        loading = false
-    }
+    val apps = snapshot.apps
+    val loading = snapshot.loading
+    val error = snapshot.error
     LaunchedEffect(apps, loading, detailsId) {
         if (!loading && detailsId != null && apps.none { it.id == detailsId }) onCloseDetails()
     }
@@ -90,7 +51,7 @@ internal fun InstalledAppsPanel(
         }
         try { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         catch (_: android.content.ActivityNotFoundException) {
-            Toast.makeText(context, "无法执行此操作，请在系统设置中管理应用", Toast.LENGTH_SHORT).show(); revision++
+            Toast.makeText(context, "无法执行此操作，请在系统设置中管理应用", Toast.LENGTH_SHORT).show(); onRefresh()
         } catch (_: SecurityException) {
             Toast.makeText(context, "系统不允许执行此操作", Toast.LENGTH_SHORT).show()
         }

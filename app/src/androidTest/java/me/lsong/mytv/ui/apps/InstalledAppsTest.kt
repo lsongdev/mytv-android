@@ -2,6 +2,10 @@ package me.lsong.mytv.ui.apps
 
 import android.content.ComponentName
 import android.content.Intent
+import androidx.compose.runtime.*
+import me.lsong.mytv.data.apps.InstalledAppsRepository
+import java.util.concurrent.atomic.AtomicInteger
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -69,6 +73,31 @@ class InstalledAppsTest {
         compose.setContent { TvTheme { InstalledAppDetails(app, true, 0, {}, {}) } }
         compose.onNodeWithTag("drawer-entry:app-action:INFO").assertExists()
         compose.onNodeWithTag("drawer-entry:app-action:UNINSTALL").assertDoesNotExist()
+    }
+
+    @Test fun preparedAppsSurviveLeavingAndReenteringThePanelWithoutAnotherScan() {
+        val app = InstalledApp(ComponentName("test.ready","test.ready.Main"),"已预热应用",null)
+        val scans = AtomicInteger()
+        val repository = InstalledAppsRepository(load = { scans.incrementAndGet(); listOf(app) })
+        var visible by mutableStateOf(true)
+        try {
+            repository.start()
+            compose.waitUntil(5000) { repository.state.value.apps.isNotEmpty() }
+            val prepared = repository.state.value.apps
+            compose.setContent { TvTheme {
+                val snapshot by repository.state.collectAsState()
+                if (visible) InstalledAppsPanel(snapshot,repository::refresh,app.id,true,0,{}, {},null,false,{}, {},240.dp)
+            } }
+            compose.onNodeWithTag("drawer-entry:${app.id}").assertIsFocused()
+            compose.runOnIdle { visible = false }
+            compose.waitForIdle()
+            compose.runOnIdle { repository.menuOpened(); visible = true }
+            compose.onNodeWithTag("drawer-entry:${app.id}").assertIsFocused()
+            compose.runOnIdle {
+                assertSame(prepared,repository.state.value.apps)
+                assertEquals(1,scans.get())
+            }
+        } finally { repository.close() }
     }
 
     @Test fun installedAppsAreLaunchableUniqueAndExcludeSelf() {

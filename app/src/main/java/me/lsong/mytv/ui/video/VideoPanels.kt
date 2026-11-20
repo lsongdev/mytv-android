@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -58,11 +59,12 @@ fun VodPosterGrid(
     state: VideoCatalogState, selectedId: String?, active: Boolean, request: Int,
     filters: List<VideoCategory>, onFilter: (String?) -> Unit, onLoadMore: () -> Unit,
     onFocused: (String) -> Unit, onOpen: (VideoWork) -> Unit, onLeft: () -> Unit,
+    gridState: LazyGridState? = null,
 ) {
     val works = state.works
     val selectedIndex = works.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
     val target = remember { FocusRequester() }
-    val grid = key(state.categoryId,state.filterId,state.query) { rememberLazyGridState() }
+    val grid = gridState ?: key(state.categoryId,state.filterId,state.query) { rememberLazyGridState() }
     val footerTarget = remember { FocusRequester() }
     val placedCards = remember { PlacedFocusTargets() }
     var filterRequest by remember(state.categoryId) { mutableIntStateOf(0) }
@@ -243,7 +245,10 @@ fun VodDetailsPanel(
             }
         }
         if (episode != null) item {
-            Button(onClick = { model.selection()?.let(onPlay) }, modifier = Modifier.testTag("vod-play").focusRequester(playTarget).focusProperties { down = episodeTarget }.vodLeft(onLeft)) { Text("播放 ${episode.title}") }
+            val continuing = playing?.takeIf { it.details.work.id == details.work.id && it.partId == episode.id }
+            Button(onClick = { (continuing ?: model.selection())?.let(onPlay) }, modifier = Modifier.testTag("vod-play").focusRequester(playTarget).focusProperties { down = episodeTarget }.vodLeft(onLeft)) {
+                Text("${if (continuing != null) "继续播放" else "播放"} ${episode.title}")
+            }
         }
         item {
             Text("选集 · ${details.parts.size} 集", style = MaterialTheme.typography.titleSmall)

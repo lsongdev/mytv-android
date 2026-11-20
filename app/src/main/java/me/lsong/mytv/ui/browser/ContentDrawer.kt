@@ -33,6 +33,8 @@ import me.lsong.mytv.ui.settings.SettingsCategory
 import me.lsong.mytv.ui.video.*
 import me.lsong.mytv.domain.video.*
 import me.lsong.mytv.domain.live.LiveCatalog
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import me.lsong.mytv.domain.live.LiveChannel
 
 private const val LIVE_AGGREGATE_ID = "live"
@@ -58,6 +60,44 @@ class ContentDrawerState(playingChannel: LiveChannel?) {
     var focusSettings by mutableStateOf(false)
     var settingsCategory by mutableStateOf(SettingsCategory.GENERAL)
 
+    private val liveScrollStates = mutableMapOf<String,LazyListState>()
+    private val videoScrollStates = linkedMapOf<VideoBrowseKey,LazyGridState>()
+    fun liveScroll(groupId: String) = liveScrollStates.getOrPut(groupId) { LazyListState() }
+    fun videoScroll(key: VideoBrowseKey): LazyGridState {
+        val scroll = videoScrollStates.remove(key) ?: LazyGridState()
+        videoScrollStates[key] = scroll
+        while (videoScrollStates.size > 24) videoScrollStates.remove(videoScrollStates.keys.first())
+        return scroll
+    }
+    private val playingContexts = linkedMapOf<String,VideoBrowseKey>()
+
+    fun rememberVideoPlayback(selection: VideoPlaybackSelection,context: VideoBrowseKey) {
+        playingContexts.remove(selection.details.work.id)
+        playingContexts[selection.details.work.id] = context
+        while (playingContexts.size > 16) playingContexts.remove(playingContexts.keys.first())
+    }
+
+    fun revealLive(catalog: LiveCatalog,channel: LiveChannel) {
+        val previous = groupIds[LIVE_AGGREGATE_ID]
+        val groupId = previous?.takeIf { it == ALL_GROUP || catalog.groups.any { group ->
+            group.id == it && group.channels.any { item -> item.id == channel.id }
+        } } ?: catalog.groups.firstOrNull { group -> group.channels.any { it.id == channel.id } }?.id ?: ALL_GROUP
+        section = Section.LIVE; focusSettings = false; videoSearch = false
+        groupIds[LIVE_AGGREGATE_ID] = groupId
+        channelIds["$LIVE_AGGREGATE_ID/$groupId"] = channel.id
+        liveScheduleId = null
+        enterColumn(2)
+    }
+
+    fun revealVideo(selection: VideoPlaybackSelection): VideoBrowseKey {
+        val context = playingContexts[selection.details.work.id] ?: VideoBrowseKey()
+        section = Section.VIDEOS; focusSettings = false; videoSearch = false; liveScheduleId = null
+        videoNavigation = context.categoryId ?: "latest"
+        videoWorkId = selection.details.work.id
+        enterColumn(2)
+        return context
+    }
+
     fun enterColumn(column: Int) {
         this.column = column
         focusRequest++
@@ -74,6 +114,8 @@ fun ContentDrawer(
     settingsContent: @Composable (SettingsCategory) -> Unit,
     modifier: Modifier = Modifier,
     providerCount: Int = 0,
+    apps: me.lsong.mytv.data.apps.InstalledAppsSnapshot = me.lsong.mytv.data.apps.InstalledAppsSnapshot(),
+    onRefreshApps: () -> Unit = {},
     videoLibrary: VideoLibraryViewModel? = null,
     onPlayVideo: (VideoPlaybackSelection) -> Unit = {},
     playingVideo: VideoPlaybackSelection? = null,
@@ -102,9 +144,7 @@ fun ContentDrawer(
     }
     val playlist = catalog
     val groups = remember(playlist) {
-        listOf(ChannelGroup(ALL_GROUP, "全部频道", playlist.channels)) + playlist.groups.map { group ->
-            ChannelGroup(group.id, group.title, group.channels)
-        }
+        listOf(ChannelGroup(ALL_GROUP, "全部频道", playlist.channels)) + playlist.groups
     }
     val group = groups.firstOrNull { it.id == state.groupIds[LIVE_AGGREGATE_ID] } ?: groups.firstOrNull()
     val channels = group?.channels.orEmpty()
@@ -207,7 +247,11 @@ fun ContentDrawer(
                                 }
                                 .onPreviewKeyEvent {
                                     if (it.key == Key.DirectionUp) {
-                                        if (it.type == KeyEventType.KeyDown) { state.focusSettings = false; state.enterColumn(0) }
+                                        if (it.type == KeyEventType.KeyDown) {
+                                            state.section = Section.APPS
+                                            state.focusSettings = false
+                                            state.enterColumn(0)
+                                        }
                                         true
                                     } else it.key == Key.DirectionDown
                                 }
@@ -216,6 +260,7 @@ fun ContentDrawer(
                     }
                     if (state.section == Section.APPS) {
                         me.lsong.mytv.ui.apps.InstalledAppsPanel(
+                            snapshot = apps, onRefresh = onRefreshApps,
                             selectedId = state.applicationId, active = state.column == 1, focusRequest = state.focusRequest,
                             onFocused = { state.applicationId = it }, onLeft = { state.enterColumn(0) },
                             detailsId = state.applicationDetailsId, detailsActive = state.column == 2,
@@ -299,6 +344,7 @@ fun ContentDrawer(
                                     videoLibrary?.search(query); state.enterColumn(2)
                                 }
                                 else -> VodPosterGrid(vodState, state.videoWorkId, state.column == 2, state.focusRequest,
+                                    gridState = state.videoScroll(VideoBrowseKey(vodState.categoryId,vodState.filterId,vodState.query)),
                                     filters = vodCategories.groups.firstOrNull { it.id == vodState.categoryId }?.filters.orEmpty(),
                                     onFilter = { videoLibrary?.selectFilter(it) }, onLoadMore = { videoLibrary?.loadMore() },
                                     onFocused = { state.videoWorkId = it }, onOpen = { videoLibrary?.open(it); state.enterColumn(2) }, onLeft = { state.enterColumn(1) })
@@ -331,6 +377,7 @@ fun ContentDrawer(
                             },
                             selectedId = selectedChannelId,
                             contextKey = channelContext,
+                            scrollState = state.liveScroll(group?.id ?: ALL_GROUP),
                             active = state.column == 2,
                             focusRequest = state.focusRequest,
                             onFocused = { state.channelIds[channelContext] = it },

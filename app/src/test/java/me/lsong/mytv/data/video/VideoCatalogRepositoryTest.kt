@@ -158,4 +158,21 @@ class VideoCatalogRepositoryTest {
         } finally { gate.complete(Unit); repo.close() }
     }
 
+    @Test fun restoringPlaybackBrowseContextUsesCachedResultsAndFallsBackWhenCategoryIsGone() = runBlocking {
+        val client = Client(); val ids = Identities(); val repo = VideoCatalogRepository(Configuration(),client,ids)
+        try {
+            repo.start(); ready(repo)
+            val movies = repo.snapshot(movie)!!.works
+            repo.selectCategory(series.categoryId)
+            val requests = client.requests.size; val merges = ids.calls.get()
+            repo.restoreBrowse(movie)
+            assertEquals(movie,repo.state.value.key)
+            assertSame(movies,repo.state.value.works)
+            repo.restoreBrowse(VideoBrowseKey("removed","removed-filter"))
+            assertEquals(VideoBrowseKey(),repo.state.value.key)
+            delay(100)
+            assertEquals(requests,client.requests.size); assertEquals(merges,ids.calls.get())
+        } finally { repo.close() }
+    }
+
 }

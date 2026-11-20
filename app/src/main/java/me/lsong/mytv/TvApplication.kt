@@ -17,6 +17,7 @@ class TvApplication : Application() {
         super.onCreate()
         UnsafeTrustManager.enableUnsafeTrustManager()
         AppContainer.initialize(applicationContext)
+        AppContainer.startCatalogues()
         applicationScope.launch { ConfigurationServer.start(applicationContext) }
         applicationScope.launch { AppContainer.providerStorage.initialize() }
     }

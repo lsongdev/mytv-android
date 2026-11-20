@@ -78,6 +78,12 @@ class PlaybackCoordinator(private val videoPlayerState: PlaybackState, private v
     fun playVideo(selection: VideoPlaybackSelection) {
         val previous = videoSelection
         val sameEpisode = previous?.details?.work?.id == selection.details.work.id && previous?.partId == selection.partId
+        if (sameEpisode && previous?.resourceId == selection.resourceId && previous.resource.uri == selection.resource.uri &&
+            previous.resource.headers == selection.resource.headers && previous.resource.mimeType == selection.resource.mimeType && videoPlayerState.error == null) {
+            videoSelection = selection
+            videoPlayerState.play()
+            return
+        }
         val paused = sameEpisode && previous?.resourceId != selection.resourceId && videoPlayerState.isPaused
         if (!sameEpisode) rememberedDuration = 0
         startVideo(selection,if (sameEpisode) positionForSave() else 0,paused,true)

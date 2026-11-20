@@ -49,10 +49,9 @@ import me.lsong.mytv.ui.input.onRemoteKeyActions
 @Composable
 fun AppScreen(
     modifier: Modifier = Modifier,
-    appViewModel: AppViewModel = viewModel(),
     homeRequest: Int = 0,
 ) {
-    AppContent(modifier = modifier, liveCatalog = appViewModel.liveCatalog, homeRequest = homeRequest)
+    AppContent(modifier = modifier, liveCatalog = AppContainer.liveCatalog, homeRequest = homeRequest)
 }
 
 @Composable
@@ -64,6 +63,9 @@ fun AppContent(
     providerSettings: ProviderSettingsViewModel = viewModel(),
     videoLibrary: VideoLibraryViewModel = viewModel(factory = AppContainer.videoViewModelFactory),
 ) {
+    val liveSnapshot by liveCatalog.state.collectAsState()
+    val installedApps = AppContainer.installedApps
+    val appsSnapshot by installedApps.state.collectAsState()
     val epg by AppContainer.epg.state.collectAsState()
     val liveOptions by AppContainer.livePreferences.options.collectAsState()
     var epgClock by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -81,7 +83,13 @@ fun AppContent(
 
     var restoringPlayback by remember { mutableStateOf(true) }
     var drawerVisible by remember { mutableStateOf(liveCatalog.channels.isEmpty()) }
-    LaunchedEffect(drawerVisible) { if (drawerVisible) videoLibrary.menuOpened() }
+    LaunchedEffect(drawerVisible) {
+        if (drawerVisible) {
+            videoLibrary.menuOpened()
+            liveCatalog.menuOpened()
+            installedApps.menuOpened()
+        }
+    }
     var channelDetailsVisible by remember { mutableStateOf(false) }
     var controlsVisible by remember { mutableStateOf(false) }
     val showControls: () -> Unit = {
@@ -89,9 +97,8 @@ fun AppContent(
         channelDetailsVisible = false
         controlsVisible = true
     }
-    val showMenu: () -> Unit = { controlsVisible = false; run { drawerVisible = true; channelDetailsVisible = false } }
 
-    val channels = liveCatalog.channels
+    val channels = liveSnapshot.catalog.channels
     LaunchedEffect(channels,restoringPlayback) {
         if (!restoringPlayback) {
             if (!playback.hasMedia && channels.isNotEmpty()) {
@@ -107,10 +114,24 @@ fun AppContent(
         }
     }
 
+    val showMenu: () -> Unit = {
+        controlsVisible = false; channelDetailsVisible = false
+        val video = playback.videoSelection
+        if (video != null) {
+            val context = drawerState.revealVideo(video)
+            videoLibrary.revealPlayback(video,context)
+            drawerState.videoNavigation = videoLibrary.browseKey.categoryId ?: "latest"
+        } else if (playback.currentChannel.resources.isNotEmpty()) {
+            videoLibrary.closeDetails()
+            drawerState.revealLive(liveCatalog.catalog,playback.currentChannel)
+        }
+        drawerVisible = true
+    }
+
     LaunchedEffect(homeRequest, restoringPlayback) {
         if (homeRequest > 0 && !restoringPlayback) {
             danmakuPanel = false
-            showMenu()
+            controlsVisible = false; channelDetailsVisible = false; drawerVisible = true
             drawerState.section = me.lsong.mytv.ui.navigation.Section.APPS
             drawerState.focusSettings = false
             drawerState.enterColumn(0)
@@ -153,7 +174,10 @@ fun AppContent(
     }
     val playbackLifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(playbackLifecycle) {
-        val observer = LifecycleEventObserver { _,event -> if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) saveSession() }
+        val observer = LifecycleEventObserver { _,event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) saveSession()
+            if (event == Lifecycle.Event.ON_RESUME) installedApps.menuOpened()
+        }
         playbackLifecycle.addObserver(observer)
         onDispose { saveSession(); playbackLifecycle.removeObserver(observer) }
     }
@@ -245,8 +269,9 @@ fun AppContent(
 
     VisibilityContainer({ drawerVisible && !channelDetailsVisible }) {
         ContentDrawer(
-            catalog = liveCatalog.catalog,
-            providerCount = liveCatalog.providerCatalogs.size,
+            catalog = liveSnapshot.catalog,
+            providerCount = liveSnapshot.providers.size,
+            apps = appsSnapshot, onRefreshApps = installedApps::refresh,
             playingChannel = playback.currentChannel.takeIf { it.resources.map { it.uri }.isNotEmpty() && playback.videoSelection == null },
             state = drawerState,
             onPlay = { channel ->
@@ -256,7 +281,10 @@ fun AppContent(
             onClose = { drawerVisible = false },
             settingsContent = { category -> SettingsContent(category, providerSettings, danmaku) },
             videoLibrary = videoLibrary,
-            onPlayVideo = { selection -> playback.playVideo(selection); drawerVisible = false },
+            onPlayVideo = { selection ->
+                drawerState.rememberVideoPlayback(selection,videoLibrary.browseKey)
+                playback.playVideo(selection); drawerVisible = false
+            },
             playingVideo = playback.videoSelection,
             nowPlayingTitle = playback.playingTitle,
             epg = epg.programmes, liveOptions = liveOptions, nowMs = epgClock,

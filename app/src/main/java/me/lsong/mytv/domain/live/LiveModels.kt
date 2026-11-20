@@ -41,6 +41,5 @@ data class LiveCatalog(
     val groups: List<ChannelGroup> = emptyList(),
     val error: String? = null,
     val isLoading: Boolean = false,
-) {
-    val channels: List<LiveChannel> get() = groups.flatMap { it.channels }.distinctBy { it.id }
-}
+    val channels: List<LiveChannel> = groups.flatMap { it.channels }.distinctBy { it.id },
+)

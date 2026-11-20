@@ -1,5 +1,7 @@
 package me.lsong.mytv.app
 
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 import android.content.Context
 import coil.imageLoader
 import androidx.lifecycle.viewmodel.initializer
@@ -50,9 +52,22 @@ object AppContainer {
         initializer { me.lsong.mytv.ui.danmaku.DanmakuViewModel(
             danmakuRepository, danmakuPreferences) }
     }
-    fun liveCatalog() = LiveCatalogRepository(provider = me.lsong.mytv.data.providers.m3u.M3uLiveProviderAdapter(storage = providerStorage), identities = identities)
+    val liveCatalog by lazy { LiveCatalogRepository(provider = me.lsong.mytv.data.providers.m3u.M3uLiveProviderAdapter(storage = providerStorage), identities = identities) }
     val videoCatalog by lazy { me.lsong.mytv.data.video.VideoCatalogRepository(
         providerConfigs,MacCmsVideoProvider(storage = providerStorage),identities) }
+    val installedApps by lazy { me.lsong.mytv.data.apps.InstalledAppsRepository(
+        load = { me.lsong.mytv.data.apps.loadInstalledApps(applicationContext) }) }
+    private val appsObserver by lazy { me.lsong.mytv.data.apps.InstalledAppsObserver(applicationContext,installedApps) }
+    private val cataloguesStarted = java.util.concurrent.atomic.AtomicBoolean()
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
+    fun startCatalogues() {
+        if (!cataloguesStarted.compareAndSet(false,true)) return
+        liveCatalog.start(providerConfigs.providers)
+        installedApps.start()
+        appsObserver.start()
+        videoCatalog.start()
+        scope.launch { epg.observe(liveCatalog.state.map { it.providers }) }
+    }
     val videoViewModelFactory = viewModelFactory {
         initializer { VideoLibraryViewModel(videoCatalog) }
     }

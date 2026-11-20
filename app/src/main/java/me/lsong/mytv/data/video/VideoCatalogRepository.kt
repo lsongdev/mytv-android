@@ -90,6 +90,15 @@ class VideoCatalogRepository(
         if (id != null && group.filters.none { it.id == id }) return
         if (id != current.filterId) select(current.copy(filterId = id))
     }
+    fun restoreBrowse(key: VideoBrowseKey) {
+        val group = categories.value.groups.firstOrNull { it.id == key.categoryId }
+        val target = when {
+            key.categoryId != null && group == null -> VideoBrowseKey()
+            key.filterId != null && group?.filters?.none { it.id == key.filterId } != false -> key.copy(filterId = null)
+            else -> key
+        }
+        if (selected.value != target) select(target)
+    }
     fun search(query: String) = select(VideoBrowseKey(query = query.trim()))
     private fun select(key: VideoBrowseKey) {
         selected.value = key

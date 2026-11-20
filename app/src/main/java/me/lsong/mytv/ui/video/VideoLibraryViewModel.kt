@@ -46,17 +46,28 @@ class VideoLibraryViewModel(
     init {
         catalog.start()
         viewModelScope.launch {
-            catalog.state.collect { snapshot ->
-                val old = _state.value
-                val changed = old.categoryId != snapshot.key.categoryId || old.filterId != snapshot.key.filterId || old.query != snapshot.key.query
-                if (changed) { detailsJob?.cancel(); detailGeneration++; cancelProbes() }
-                _state.value = (if (changed) VideoCatalogState() else old).copy(works = snapshot.works,
-                    providers = snapshot.providers,query = snapshot.key.query,categoryId = snapshot.key.categoryId,
-                    categoryTitle = snapshot.categoryTitle,filterId = snapshot.key.filterId,filterTitle = snapshot.filterTitle,
-                    preparing = snapshot.preparing)
-            }
+            catalog.state.collect(::applySnapshot)
         }
     }
+    private fun applySnapshot(snapshot: VideoCatalogSnapshot) {
+        val old = _state.value
+        val changed = old.categoryId != snapshot.key.categoryId || old.filterId != snapshot.key.filterId || old.query != snapshot.key.query
+        if (changed) { detailsJob?.cancel(); detailGeneration++; cancelProbes() }
+        _state.value = (if (changed) VideoCatalogState() else old).copy(works = snapshot.works,
+            providers = snapshot.providers,query = snapshot.key.query,categoryId = snapshot.key.categoryId,
+            categoryTitle = snapshot.categoryTitle,filterId = snapshot.key.filterId,filterTitle = snapshot.filterTitle,
+            preparing = snapshot.preparing)
+    }
+    val browseKey get() = VideoBrowseKey(_state.value.categoryId,_state.value.filterId,_state.value.query)
+
+    fun revealPlayback(selection: VideoPlaybackSelection,context: VideoBrowseKey) {
+        detailsJob?.cancel(); detailGeneration++; cancelProbes()
+        catalog.restoreBrowse(context)
+        applySnapshot(catalog.state.value)
+        _state.update { it.copy(details = selection.details,detailsLoading = false,detailsError = null,
+            selectedPartId = selection.partId,selectedResourceId = selection.resourceId) }
+    }
+
     fun selectCategory(id: String?) = catalog.selectCategory(id)
     fun selectFilter(id: String?) = catalog.selectFilter(id)
     fun search(query: String) = catalog.search(query)
@@ -132,13 +143,15 @@ class VideoLibraryViewModel(
     }
 
     fun selectPart(id: String) {
+        if (id == _state.value.selectedPartId) return
         _state.update { it.copy(selectedPartId = id, selectedResourceId = null) }
     }
 
     fun selection(partId: String = _state.value.selectedPartId.orEmpty(), resourceId: String? = null): VideoPlaybackSelection? {
         val detail = _state.value.details ?: return null
         val episode = detail.parts.firstOrNull { it.id == partId } ?: return null
-        val candidate = episode.resources.firstOrNull { it.id == resourceId } ?: episode.resources.firstOrNull() ?: return null
+        val selectedResource = resourceId ?: _state.value.selectedResourceId.takeIf { partId == _state.value.selectedPartId }
+        val candidate = episode.resources.firstOrNull { it.id == selectedResource } ?: episode.resources.firstOrNull() ?: return null
         return VideoPlaybackSelection(detail, episode.id, candidate.id)
     }
 }

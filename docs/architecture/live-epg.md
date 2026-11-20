@@ -1,6 +1,6 @@
 # Live logos and XMLTV
 
-Settings → 台标与节目单 controls channel logos, current-programme labels, EPG
+Settings → 节目单 controls channel logos, current-programme labels, EPG
 loading, playlist discovery, optional default feed and the 1/3/6/12/24-hour refresh
 interval (default 6 hours). Custom feeds are validated HTTP(S) XMLTV URLs. The
 legacy `EPG_URL_LIST` preference and web configuration remain compatible and reactive.

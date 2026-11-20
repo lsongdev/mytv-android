@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -46,11 +47,12 @@ internal fun BrowseList(
     onRight: () -> Unit,
     emptyMessage: String,
     modifier: Modifier = Modifier,
+    scrollState: LazyListState? = null,
     downFocusRequester: FocusRequester = FocusRequester.Cancel,
 ) {
     val focusRequester = remember { FocusRequester() }
     val selectedIndex = entries.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
-    val listState = rememberLazyListState()
+    val listState = scrollState ?: rememberLazyListState()
     var restoringFocus by remember(active, focusRequest, contextKey) { mutableStateOf(true) }
     LaunchedEffect(active, focusRequest, contextKey) {
         restoringFocus = true

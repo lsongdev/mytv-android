@@ -148,7 +148,7 @@ class ContentDrawerTest {
         compose.onNodeWithTag("drawer-entry:${channel.id}").assertIsFocused()
     }
 
-    @Test fun sourceColumnDownReachesPinnedSettings() {
+    @Test fun firstColumnFocusFollowsMenuOrderInBothDirections() {
         val playlists = menuPreviewPlaylists()
         val playing = mergeLiveCatalogs(playlists).channels.first()
         val state = ContentDrawerState(playing)
@@ -163,11 +163,35 @@ class ContentDrawerTest {
         compose.onNodeWithTag("drawer-entry:apps").assertIsFocused()
         press(Key.DirectionDown)
         compose.onNodeWithTag("drawer-settings").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("drawer-settings").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("drawer-entry:apps").assertIsFocused()
+        compose.runOnIdle { assertEquals(Section.APPS, state.section); assertFalse(state.focusSettings) }
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("drawer-entry:videos").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("drawer-entry:live").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("drawer-entry:live").assertIsFocused()
+
+        repeat(3) { press(Key.DirectionDown) }
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("drawer-entry:GENERAL").assertIsFocused()
+        press(Key.DirectionLeft)
+        compose.onNodeWithTag("drawer-settings").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("drawer-entry:apps").assertIsFocused()
     }
 
     @Test fun applicationsEntryOpensListAndLeftRestoresNavigation() {
         val state = ContentDrawerState(null)
-        compose.setContent { TvTheme { ContentDrawer(mergeLiveCatalogs(emptyList()), null, state, {}, {}, {}) } }
+        val preparedApps = me.lsong.mytv.data.apps.InstalledAppsSnapshot(apps = listOf(
+            me.lsong.mytv.data.apps.InstalledApp(android.content.ComponentName("test.ready","test.ready.Main"),"已预热应用",null),
+        ))
+        compose.setContent { TvTheme {
+            ContentDrawer(mergeLiveCatalogs(emptyList()), null, state, {}, {}, {}, apps = preparedApps)
+        } }
         val groupWidth = compose.onNodeWithTag("drawer-live-group-column").fetchSemanticsNode().boundsInRoot.width
         press(Key.DirectionDown)
         press(Key.DirectionDown)
