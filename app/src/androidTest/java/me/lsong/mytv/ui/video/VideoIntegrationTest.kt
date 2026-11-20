@@ -203,7 +203,7 @@ class VideoIntegrationTest {
         val player = Player()
         val state = PlaybackState(player).apply { initialize() }
         val main = PlaybackCoordinator(state, LiveCatalogRepository())
-        val resources = listOf("a", "b").map { PlaybackResource("https://example.com/$it.m3u8", ProviderRecordRef(it, "1"), it) }
+        val resources = listOf("a", "b", "c").map { PlaybackResource("https://example.com/$it.m3u8", ProviderRecordRef(it, "1"), it) }
         val work = VideoWork("work", listOf(ProviderVideoRecord(ProviderRecordRef("a", "1"), "A", "测试剧")))
         val details = VideoDetails(work, listOf(VideoPart("e1", "第1集", 1, resources), VideoPart("e2", "第2集", 2, listOf(resources[0].copy(uri = "https://example.com/a2.m3u8")))))
         main.playVideo(VideoPlaybackSelection(details, "e1", resources[0].id))
@@ -211,8 +211,15 @@ class VideoIntegrationTest {
         player.fail()
         assertEquals(resources[1].id, main.videoSelection!!.resourceId)
         assertEquals(42_000L, player.requests.last().startPositionMs)
+        // A replacement may fail before it has loaded the requested position.
+        player.position = 0
+        state.pause()
         player.fail()
-        assertEquals(2, player.requests.size)
+        assertEquals(resources[2].id, main.videoSelection!!.resourceId)
+        assertEquals(42_000L, player.requests.last().startPositionMs)
+        assertFalse(player.requests.last().playWhenReady)
+        player.fail()
+        assertEquals(3, player.requests.size)
         assertEquals("e1", main.videoSelection!!.partId)
         main.playVideo(VideoPlaybackSelection(details, "e2", details.parts[1].resources[0].id))
         assertEquals(0L, player.requests.last().startPositionMs)

@@ -46,7 +46,13 @@ class PlaybackCoordinator(private val videoPlayerState: PlaybackState, private v
         }
     }
     private fun positionForSave(): Long {
-        if (!videoPlayerState.isReleased && !videoPlayerState.isBuffering && videoPlayerState.error == null) rememberedPosition = videoPlayerState.positionMs.coerceAtLeast(0)
+        if (!videoPlayerState.isReleased) {
+            val position = videoPlayerState.positionMs.coerceAtLeast(0)
+            // An error callback can still expose a valid final position. Keep a
+            // saved bookmark when a failed/buffering engine instead reports zero.
+            val hasReliableZero = !videoPlayerState.isBuffering && videoPlayerState.error == null
+            if (position > 0 || hasReliableZero) rememberedPosition = position
+        }
         return rememberedPosition
     }
     fun cycleVideoSpeed() {
