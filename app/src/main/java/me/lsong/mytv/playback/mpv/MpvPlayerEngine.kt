@@ -72,8 +72,9 @@ class MpvPlayerEngine(
 
         mpv.setOptionString("cache", "yes")
         mpv.setOptionString("demuxer-readahead-secs", "30")
-        mpv.setOptionString("demuxer-max-bytes", "256MiB")
-        mpv.setOptionString("demuxer-max-back-bytes", "32MiB")
+        // Bound buffering on memory-constrained Android TV boxes.
+        mpv.setOptionString("demuxer-max-bytes", "64MiB")
+        mpv.setOptionString("demuxer-max-back-bytes", "16MiB")
         mpv.setOptionString(
             "stream-lavf-o",
             "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=2",
@@ -131,8 +132,8 @@ class MpvPlayerEngine(
     override fun setDisplayAspectRatio(ratio: Float?) {
         if (!released) mpv.setPropertyString("video-aspect-override",ratio?.toString() ?: "no")
     }
-    override fun play() { if (!released) mpv.setPropertyString("pause", "no") }
-    override fun pause() { stopMonitoring(); if (!released) mpv.setPropertyString("pause", "yes") }
+    override fun play() { triggerResumed(); if (!released) mpv.setPropertyString("pause", "no") }
+    override fun pause() { triggerPaused(); if (!released) mpv.setPropertyString("pause", "yes") }
 
     fun seekToLiveEdge() {}
 

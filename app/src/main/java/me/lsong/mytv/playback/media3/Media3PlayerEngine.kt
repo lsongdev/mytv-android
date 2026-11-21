@@ -237,11 +237,12 @@ class Media3PlayerEngine(
     override fun seekTo(positionMs: Long) { videoPlayer.seekTo(positionMs.coerceAtLeast(0)) }
 
     override fun play() {
+        triggerResumed()
         videoPlayer.play()
     }
 
     override fun pause() {
-        stopMonitoring()
+        triggerPaused()
         videoPlayer.pause()
     }
 

@@ -23,7 +23,8 @@ class PlaybackCoordinator(private val videoPlayerState: PlaybackState, private v
     val currentChannelIndex get() = channels.indexOfFirst { it.id == channel.id }
     val playingTitle get() = videoSelection?.title ?: channel.title.takeIf { channel.resources.isNotEmpty() }
     val hasMedia get() = videoSelection != null || channel.resources.isNotEmpty()
-    private val attemptedVideoResources = mutableSetOf<String>()
+    private val videoRecovery = PlaybackRecoveryPolicy()
+    private val liveRecovery = PlaybackRecoveryPolicy()
     private var rememberedPosition = 0L
     private var rememberedDuration = 0L
 
@@ -33,16 +34,33 @@ class PlaybackCoordinator(private val videoPlayerState: PlaybackState, private v
             if (videoSelection == null) channel.resources.getOrNull(resourceIndex)?.let { AppPreferences.iptvPlayableHostList += host(it.uri) }
         }
         videoPlayerState.onError {
-            videoSelection?.let { selection ->
-                val next = selection.part.resources.firstOrNull { it.id !in attemptedVideoResources }
-                if (next != null) startVideo(selection.copy(resourceId = next.id),positionForSave(),videoPlayerState.isPaused,false)
+            val selection = videoSelection
+            if (selection != null) {
+                val resources = selection.part.resources
+                val current = resources.indexOfFirst { it.id == selection.resourceId }
+                val next = videoRecovery.nextAfterFailure(resources.map { it.id }, current)
+                if (next != null) startVideo(selection.copy(resourceId = resources[next].id),
+                    positionForSave(),videoPlayerState.isPaused,false)
                 return@onError
             }
             channel.resources.getOrNull(resourceIndex)?.let { AppPreferences.iptvPlayableHostList -= host(it.uri) }
-            if (resourceIndex < channel.resources.lastIndex) startChannel(channel,resourceIndex+1,videoPlayerState.isPaused)
+            val next = liveRecovery.nextAfterFailure(channel.resources.map { it.id },resourceIndex)
+            if (next != null) startChannel(channel,next,videoPlayerState.isPaused,resetRecovery = false)
         }
         videoPlayerState.onCutoff {
-            if (videoSelection == null && channel.resources.isNotEmpty()) startChannel(channel,resourceIndex,videoPlayerState.isPaused)
+            val selection = videoSelection
+            if (selection != null) {
+                val resources = selection.part.resources
+                val current = resources.indexOfFirst { it.id == selection.resourceId }
+                val next = videoRecovery.nextAfterStall(resources.map { it.id },current)
+                if (next != null) startVideo(selection.copy(resourceId = resources[next].id),
+                    positionForSave(),videoPlayerState.isPaused,false)
+                else videoPlayerState.reportFailure("VIDEO_STALLED")
+            } else if (channel.resources.isNotEmpty()) {
+                val next = liveRecovery.nextAfterStall(channel.resources.map { it.id },resourceIndex)
+                if (next != null) startChannel(channel,next,videoPlayerState.isPaused,resetRecovery = false)
+                else videoPlayerState.reportFailure("LIVE_STALLED")
+            }
         }
     }
     private fun positionForSave(): Long {
@@ -65,7 +83,7 @@ class PlaybackCoordinator(private val videoPlayerState: PlaybackState, private v
         val index = urlIdx ?: channel.resources.indexOfFirst { host(it.uri) in AppPreferences.iptvPlayableHostList }.coerceAtLeast(0)
         startChannel(channel,index,false)
     }
-    private fun startChannel(value: LiveChannel, index: Int, paused: Boolean) {
+    private fun startChannel(value: LiveChannel, index: Int, paused: Boolean, resetRecovery: Boolean = true) {
         if (value.resources.isEmpty()) return
         videoSelection = null; channel = value
         resourceIndex = ((index % value.resources.size)+value.resources.size)%value.resources.size
@@ -73,6 +91,7 @@ class PlaybackCoordinator(private val videoPlayerState: PlaybackState, private v
         AppPreferences.iptvLastIptvIdx = currentChannelIndex.coerceAtLeast(0)
         videoPlayerState.setSpeed(1f)
         val resource = value.resources[resourceIndex]
+        if (resetRecovery) liveRecovery.reset(resource.id) else liveRecovery.markAttempt(resource.id)
         videoPlayerState.prepare(PlaybackRequest(resource.uri,resource.headers,resource.mimeType,live = true,playWhenReady = !paused))
     }
     fun playVideo(selection: VideoPlaybackSelection) {
@@ -89,8 +108,8 @@ class PlaybackCoordinator(private val videoPlayerState: PlaybackState, private v
         startVideo(selection,if (sameEpisode) positionForSave() else 0,paused,true)
     }
     private fun startVideo(selection: VideoPlaybackSelection, position: Long, paused: Boolean, resetAttempts: Boolean) {
-        if (resetAttempts) attemptedVideoResources.clear()
-        attemptedVideoResources += selection.resourceId
+        if (resetAttempts) videoRecovery.reset(selection.resourceId)
+        else videoRecovery.markAttempt(selection.resourceId)
         videoSelection = selection
         rememberedPosition = position.coerceAtLeast(0)
         videoPlayerState.setSpeed(videoSpeed)

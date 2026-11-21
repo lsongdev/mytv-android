@@ -15,6 +15,8 @@ abstract class PlayerEngine(
     private var loadTimeoutJob: Job? = null
     private var cutoffTimeoutJob: Job? = null
     private var currentPosition = -1L
+    private var awaitingReady = false
+    private var monitoringPaused = false
 
     protected var metadata = Metadata()
 
@@ -23,6 +25,7 @@ abstract class PlayerEngine(
     }
 
     open fun release() {
+        awaitingReady = false
         stopMonitoring()
         clearAllListeners()
     }
@@ -65,12 +68,16 @@ abstract class PlayerEngine(
     }
 
     protected fun triggerError(error: PlaybackException?) {
-        if (error != null) stopMonitoring()
+        if (error != null) {
+            awaitingReady = false
+            stopMonitoring()
+        }
         // Notify after canceling the old timers: listeners may immediately prepare a new resource.
         onErrorListeners.toList().forEach { it(error) }
     }
 
     protected fun triggerReady() {
+        awaitingReady = false
         loadTimeoutJob?.cancel()
         onReadyListeners.toList().forEach { it() }
     }
@@ -80,14 +87,31 @@ abstract class PlayerEngine(
     }
 
     protected fun triggerPrepared() {
+        awaitingReady = true
+        currentPosition = -1L
         onPreparedListeners.forEach { it() }
-        loadTimeoutJob?.cancel()
-        loadTimeoutJob = coroutineScope.launch {
-            delay(AppPreferences.videoPlayerLoadTimeout)
-            triggerError(PlaybackException.LOAD_TIMEOUT)
-        }
+        startLoadTimeout()
         cutoffTimeoutJob?.cancel()
         cutoffTimeoutJob = null
+    }
+
+    private fun startLoadTimeout() {
+        loadTimeoutJob?.cancel()
+        if (monitoringPaused || !awaitingReady) return
+        loadTimeoutJob = coroutineScope.launch {
+            delay(AppPreferences.videoPlayerLoadTimeout.coerceAtLeast(1_000L))
+            if (!monitoringPaused && awaitingReady) triggerError(PlaybackException.LOAD_TIMEOUT)
+        }
+    }
+
+    protected fun triggerPaused() {
+        monitoringPaused = true
+        stopMonitoring()
+    }
+
+    protected fun triggerResumed() {
+        monitoringPaused = false
+        if (awaitingReady) startLoadTimeout()
     }
 
     protected fun triggerMetadata(metadata: Metadata) {
@@ -97,6 +121,7 @@ abstract class PlayerEngine(
     protected fun stopMonitoring() {
         loadTimeoutJob?.cancel()
         cutoffTimeoutJob?.cancel()
+        cutoffTimeoutJob = null
     }
 
     protected fun triggerCurrentPosition(newPosition: Long, playing: Boolean) {

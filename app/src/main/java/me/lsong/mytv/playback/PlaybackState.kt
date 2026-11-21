@@ -51,6 +51,13 @@ class PlaybackState(
         if (request.playWhenReady) instance.play() else instance.pause()
     }
 
+    /** The engine can be stalled without producing an explicit player error. */
+    fun reportFailure(reason: String) {
+        error = reason
+        isBuffering = false
+        instance.pause()
+    }
+
     fun setSpeed(value: Float) { instance.speed = value }
     fun setDisplayAspectRatio(ratio: Float?) = instance.setDisplayAspectRatio(ratio)
 
