@@ -63,7 +63,7 @@ internal fun resolveMediaUrl(playlistUrl: String, raw: String): String? = runCat
     val resolved = java.net.URI(playlistUrl).resolve(java.net.URI(value))
     val uri = resolved.toString()
     when (resolved.scheme?.lowercase()) {
-        "http", "https" -> uri.takeIf(me.lsong.mytv.domain.provider::isHttpUrl)
+        "http", "https" -> uri.takeIf { me.lsong.mytv.domain.provider.isHttpUrl(it) }
         "rtsp", "rtsps", "rtmp", "udp", "rtp", "srt" ->
             uri.takeIf { resolved.rawSchemeSpecificPart.isNotBlank() }
         else -> null

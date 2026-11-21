@@ -58,7 +58,7 @@ object VideoAggregator {
             val found = candidateIndices.firstOrNull { index ->
                 groups[index].all { same(identities.getValue(it.ref), id) }
             }
-            val index = found ?: groups.size.also { groups += mutableListOf() }
+            val index = found ?: groups.size.also { groups.add(mutableListOf()) }
             groups[index] += item
             matchKeys.forEach { key ->
                 val indices = candidates.getOrPut(key) { mutableListOf() }

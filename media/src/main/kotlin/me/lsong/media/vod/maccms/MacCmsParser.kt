@@ -6,7 +6,7 @@ import java.io.IOException
 
 object MacCmsParser {
     private val htmlTags = Regex("<[^>]+>")
-    private val directExtensions = Regex("\\\\.(m3u8|mp4|mkv|mov|m4v|ts|webm)$")
+    private val directExtensions = Regex("\\.(m3u8|mp4|mkv|mov|m4v|ts|webm)$")
     fun page(baseUri: String, text: String, includeLines: Boolean = false): MacCmsPage {
         val root = Json.parseToJsonElement(text).jsonObject
         val code = root.text("code")
