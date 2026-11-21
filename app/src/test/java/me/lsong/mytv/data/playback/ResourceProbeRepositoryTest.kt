@@ -37,6 +37,26 @@ class ResourceProbeRepositoryTest {
         }
         assertEquals(2, requests)
     }
+    @Test fun concurrentRequestsForTheSameResourceShareOneProbe() = runBlocking {
+        var requests = 0
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val repository = ResourceProbeRepository(measure = {
+            requests++
+            started.complete(Unit)
+            release.await()
+            ResourceProbe.Measured(25, 2048)
+        })
+        val first = async { repository.probe(resource) }
+        started.await()
+        val second = async { repository.probe(resource) }
+        yield()
+        release.complete(Unit)
+        assertEquals(first.await(),second.await())
+        assertEquals(1,requests)
+        assertEquals(first.await(),repository.probe(resource))
+        assertEquals(1,requests)
+    }
     @Test fun atMostTwoRequestsRunTogether() = runBlocking {
         var running = 0; var maximum = 0
         val release = CompletableDeferred<Unit>()
