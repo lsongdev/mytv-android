@@ -74,4 +74,40 @@ class EpgRepositoryTest {
         }
     }
 
+    @Test fun concurrentEpgFeedsPublishAllChannelsWithoutLosingUpdates() = runBlocking<Unit> {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val id = "epg-parallel-${UUID.randomUUID()}"
+        val prefs = context.getSharedPreferences(id,Context.MODE_PRIVATE)
+        val directory = File(context.cacheDir,id)
+        val scope = CoroutineScope(SupervisorJob()+Dispatchers.Default)
+        val requests = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val now = System.currentTimeMillis()
+        val format = java.text.SimpleDateFormat("yyyyMMddHHmmss Z",java.util.Locale.ROOT)
+        val start = format.format(java.util.Date(now-60_000))
+        val stop = format.format(java.util.Date(now+120_000))
+        val client = okhttp3.OkHttpClient.Builder().addInterceptor { chain ->
+            val url = chain.request().url.toString()
+            requests += url
+            val channel = if (chain.request().url.host.startsWith("one")) "one" else "two"
+            val xml = """<tv><channel id="$channel"><display-name>$channel</display-name></channel><programme channel="$channel" start="$start" stop="$stop"><title>$channel now</title></programme></tv>"""
+            okhttp3.Response.Builder().request(chain.request()).protocol(okhttp3.Protocol.HTTP_1_1)
+                .code(200).message("OK").body(xml.toResponseBody("application/xml".toMediaType())).build()
+        }.build()
+        try {
+            val options = LivePreferences(prefs)
+            options.update(LiveOptions(epgUrls = setOf("https://one.example/epg","https://two.example/epg"),useDefaultEpg = false))
+            val repository = EpgRepository(options,ProviderStorage(directory,prefs),
+                EpgClient(me.lsong.media.http.MediaHttpClient(client)))
+            scope.launch { repository.observe(flowOf(emptyList())) }
+            val result = withTimeout(10_000) { repository.state.first {
+                !it.loading && it.programmes.size == 2 && it.programmes.all { channel -> channel.programmes.isNotEmpty() }
+            } }
+            assertEquals(setOf("one","two"),result.programmes.map { it.id }.toSet())
+            assertEquals(2,requests.distinct().size)
+        } finally {
+            scope.cancel(); client.dispatcher.executorService.shutdown()
+            directory.deleteRecursively(); prefs.edit().clear().commit()
+        }
+    }
+
 }

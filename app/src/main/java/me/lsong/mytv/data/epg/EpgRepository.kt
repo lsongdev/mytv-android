@@ -49,6 +49,8 @@ class EpgRepository(val preferences: LivePreferences, val storage: ProviderStora
                 val documents = linkedMapOf<String,EpgDocument>()
                 val documentsMutex = Mutex()
                 val publishMutex = Mutex()
+                // Reuse each feed's prepared EPG rows across progress/loading emissions.
+                val prepared = mutableMapOf<String,Pair<EpgDocument,List<EpgChannel>>>()
                 feeds.forEach { feed -> storage.cached(feed.provider,"epg",EpgDocument.serializer(),maxBytes = 32_000_000)?.value?.let { documents[feed.url] = it } }
                 fun hasGuide(document: EpgDocument?) = document?.channels?.any { channel -> channel.programmes.any { it.endsAt > System.currentTimeMillis() } } == true
                 suspend fun primaryAvailable() = documentsMutex.withLock {
@@ -58,13 +60,28 @@ class EpgRepository(val preferences: LivePreferences, val storage: ProviderStora
                     val snapshot = documentsMutex.withLock { documents.toMap() }
                     val primaryReady = feeds.filterNot { it.fallback }.any { hasGuide(snapshot[it.url]) }
                     val activeFeeds = feeds.filter { !it.fallback || !primaryReady }
-                    mutable.value = EpgState(withContext(Dispatchers.Default) {
-                    EpgList(activeFeeds.flatMap { feed -> snapshot[feed.url]?.channels.orEmpty().flatMap { channel ->
-                        (if (feed.owners.isEmpty()) listOf(null) else feed.owners.toList()).map { owner ->
-                            EpgChannel(channel.id,owner,channel.title,channel.programmes.map { EpgProgramme(it.channelId,it.startsAt,it.endsAt,it.title) },channel.names,channel.icon?.let { me.lsong.mytv.data.providers.m3u.resolvePlaylistUrl(feed.url,it) })
+                    val channels = withContext(Dispatchers.Default) {
+                        activeFeeds.flatMap { feed ->
+                            val document = snapshot[feed.url] ?: return@flatMap emptyList<EpgChannel>()
+                            val old = prepared[feed.url]
+                            if (old != null && old.first === document) old.second
+                            else {
+                                val rows = document.channels.flatMap { channel ->
+                                    (if (feed.owners.isEmpty()) listOf(null) else feed.owners.toList()).map { owner ->
+                                        EpgChannel(channel.id,owner,channel.title,
+                                            channel.programmes.map { EpgProgramme(it.channelId,it.startsAt,it.endsAt,it.title) },
+                                            channel.names,channel.icon?.let {
+                                                me.lsong.mytv.data.providers.m3u.resolvePlaylistUrl(feed.url,it)
+                                            })
+                                    }
+                                }
+                                prepared[feed.url] = document to rows
+                                rows
+                            }
                         }
-                    } })
-                }, feeds, loading) }
+                    }
+                    mutable.value = EpgState(EpgList(channels), feeds, loading)
+                }
                 publish(feeds.isNotEmpty())
                 var force = revision != consumedRevision
                 consumedRevision = revision

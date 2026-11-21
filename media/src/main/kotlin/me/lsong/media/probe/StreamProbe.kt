@@ -27,16 +27,19 @@ class StreamProbe(
         var target = endpoint
         repeat(3) {
             val sample = fetch(target)
-            val text = sample.bytes.toString(Charsets.UTF_8).removePrefix("\uFEFF").trimStart()
-            if (text.startsWith("#EXTM3U")) {
-                val next = text.lineSequence().map(String::trim)
+            // Binary TS/MP4 chunks should not allocate a 256 KiB UTF-8 string.
+            val prefix = String(sample.bytes,0,minOf(sample.bytes.size,2048),Charsets.UTF_8)
+                .removePrefix("\uFEFF").trimStart()
+            if (prefix.startsWith("#EXTM3U")) {
+                val playlist = sample.bytes.toString(Charsets.UTF_8).removePrefix("\uFEFF")
+                val next = playlist.lineSequence().map(String::trim)
                     .firstOrNull { it.isNotBlank() && !it.startsWith('#') }
                     ?: throw IOException("Empty HLS playlist")
                 val uri = sample.uri.resolve(next) ?: throw IOException("Invalid HLS media URI")
                 target = target.copy(uri = uri.toString())
             } else {
                 if (sample.bytes.isEmpty() || sample.contentType.contains("text/", true) ||
-                    sample.contentType.contains("json", true) || text.startsWith("<html", true) || text.startsWith("<!doctype", true)) {
+                    sample.contentType.contains("json", true) || prefix.startsWith("<html", true) || prefix.startsWith("<!doctype", true)) {
                     throw IOException("Response is not media")
                 }
                 val elapsedNanos = (sample.finished - sample.started).coerceAtLeast(1)
