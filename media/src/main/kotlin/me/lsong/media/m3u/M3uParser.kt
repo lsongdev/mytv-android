@@ -1,7 +1,7 @@
 package me.lsong.media.m3u
 
 object M3uParser {
-    private val attributePattern = Regex("""([\\w-]+)\\s*=\\s*(?:"([^"]*)"|([^\\s]+))""")
+    private val attributePattern = Regex("""([\w-]+)\s*=\s*(?:"([^"]*)"|([^\s]+))""")
     fun parse(data: String): M3uDocument {
         val lines = data.removePrefix("\uFEFF").lineSequence().map { it.trim() }.filter { it.isNotEmpty() }
         val headers = mutableMapOf<String, String>()
