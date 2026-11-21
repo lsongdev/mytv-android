@@ -159,8 +159,15 @@ abstract class PlayerEngine(
     }
 
     protected fun triggerCurrentPosition(newPosition: Long, playing: Boolean) {
-        if (!playing) { cutoffTimeoutJob?.cancel(); currentPosition = newPosition; return }
-        if (currentPosition != newPosition) {
+        if (!playing) {
+            cutoffTimeoutJob?.cancel()
+            cutoffTimeoutJob = null
+            currentPosition = newPosition
+            return
+        }
+        // After pause, rebuffer or a surface interruption there may be no
+        // pending watchdog even if the first resumed position is unchanged.
+        if (currentPosition != newPosition || cutoffTimeoutJob == null) {
             cutoffTimeoutJob?.cancel()
             cutoffTimeoutJob = coroutineScope.launch {
                 delay(AppPreferences.videoPlayerLoadTimeout.coerceAtLeast(1_000L))

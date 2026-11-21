@@ -101,6 +101,7 @@ class PlaybackSessionTest {
             player.fail()
             assertEquals(3,player.requests.size)
             assertNotNull(state.error)
+            assertTrue(state.isPaused)
             state.release()
         }
     }
