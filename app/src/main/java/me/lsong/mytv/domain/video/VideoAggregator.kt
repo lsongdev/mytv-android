@@ -43,10 +43,27 @@ object VideoAggregator {
         val groups = mutableListOf<MutableList<ProviderVideoRecord>>()
         val unique = items.distinctBy { it.ref }
         val identities = unique.associate { it.ref to identity(it) }
+        // Index candidate works before applying strict pairwise matching.
+        val candidates = HashMap<String, MutableList<Int>>()
+        fun keys(id: Identity): List<String> = buildList {
+            val discriminator = "${id.kind}|${id.season}|${id.edition}"
+            if (id.externalId != null) add("id:${id.kind}|${id.season}|${id.edition}|${id.externalId}")
+            if (id.year.isNotEmpty()) add("alias:${id.kind}|${id.season}|${id.edition}|${id.alias}")
+        }
         unique.forEach { item ->
-            // Every pair must agree: an entry with no external ID cannot bridge two conflicting IDs.
-            val group = groups.firstOrNull { members -> members.all { same(identities.getValue(it.ref), identities.getValue(item.ref)) } }
-            if (group == null) groups += mutableListOf(item) else group += item
+            val id = identities.getValue(item.ref)
+            val matchKeys = keys(id)
+            val candidateIndices = matchKeys.flatMap { candidates[it].orEmpty() }.distinct().sorted()
+            // An unidentified record cannot bridge conflicting external IDs.
+            val found = candidateIndices.firstOrNull { index ->
+                groups[index].all { same(identities.getValue(it.ref), id) }
+            }
+            val index = found ?: groups.size.also { groups += mutableListOf() }
+            groups[index] += item
+            matchKeys.forEach { key ->
+                val indices = candidates.getOrPut(key) { mutableListOf() }
+                if (index !in indices) indices += index
+            }
         }
         val ids = identityStore.resolveAll("video", groups.map { variants ->
             val first = variants.first()

@@ -55,6 +55,7 @@ class PlaybackState(
     fun reportFailure(reason: String) {
         error = reason
         isBuffering = false
+        playRequested = false
         instance.pause()
     }
 

@@ -5,6 +5,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.IOException
 
 object MacCmsParser {
+    private val htmlTags = Regex("<[^>]+>")
+    private val directExtensions = Regex("\\\\.(m3u8|mp4|mkv|mov|m4v|ts|webm)$")
     fun page(baseUri: String, text: String, includeLines: Boolean = false): MacCmsPage {
         val root = Json.parseToJsonElement(text).jsonObject
         val code = root.text("code")
@@ -56,10 +58,10 @@ object MacCmsParser {
     }
 
     private fun JsonObject.text(key: String) = (get(key) as? JsonPrimitive)?.contentOrNull.orEmpty()
-    private fun clean(value: String) = value.replace(Regex("<[^>]+>"), " ").replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").trim()
+    private fun clean(value: String) = value.replace(htmlTags, " ").replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").trim()
     private fun direct(url: String, code: String): Boolean {
         val path = url.toHttpUrl().encodedPath.lowercase()
         if (path.contains("/share/") || path.endsWith(".html") || path.endsWith(".htm")) return false
-        return Regex("\\.(m3u8|mp4|mkv|mov|m4v|ts|webm)$").containsMatchIn(path) || code.contains("m3u8", true)
+        return directExtensions.containsMatchIn(path) || code.contains("m3u8", true)
     }
 }

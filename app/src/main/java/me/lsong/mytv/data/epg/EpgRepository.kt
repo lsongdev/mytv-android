@@ -3,6 +3,8 @@ package me.lsong.mytv.data.epg
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import me.lsong.media.epg.EpgClient
 import me.lsong.media.epg.EpgDocument
@@ -45,12 +47,17 @@ class EpgRepository(val preferences: LivePreferences, val storage: ProviderStora
             .distinctUntilChanged().collectLatest { (feeds,options,revision) ->
                 if (!options.epgEnabled) { mutable.value = EpgState(); return@collectLatest }
                 val documents = linkedMapOf<String,EpgDocument>()
+                val documentsMutex = Mutex()
+                val publishMutex = Mutex()
                 feeds.forEach { feed -> storage.cached(feed.provider,"epg",EpgDocument.serializer(),maxBytes = 32_000_000)?.value?.let { documents[feed.url] = it } }
                 fun hasGuide(document: EpgDocument?) = document?.channels?.any { channel -> channel.programmes.any { it.endsAt > System.currentTimeMillis() } } == true
-                fun primaryAvailable() = feeds.filterNot { it.fallback }.any { hasGuide(documents[it.url]) }
-                suspend fun publish(loading: Boolean) {
-                    val snapshot = documents.toMap()
-                    val activeFeeds = feeds.filter { !it.fallback || !primaryAvailable() }
+                suspend fun primaryAvailable() = documentsMutex.withLock {
+                    feeds.filterNot { it.fallback }.any { hasGuide(documents[it.url]) }
+                }
+                suspend fun publish(loading: Boolean) = publishMutex.withLock {
+                    val snapshot = documentsMutex.withLock { documents.toMap() }
+                    val primaryReady = feeds.filterNot { it.fallback }.any { hasGuide(snapshot[it.url]) }
+                    val activeFeeds = feeds.filter { !it.fallback || !primaryReady }
                     mutable.value = EpgState(withContext(Dispatchers.Default) {
                     EpgList(activeFeeds.flatMap { feed -> snapshot[feed.url]?.channels.orEmpty().flatMap { channel ->
                         (if (feed.owners.isEmpty()) listOf(null) else feed.owners.toList()).map { owner ->
@@ -70,8 +77,10 @@ class EpgRepository(val preferences: LivePreferences, val storage: ProviderStora
                             document.copy(channels = document.channels.map { channel -> channel.copy(programmes = channel.programmes.filter { it.endsAt > now - 86400_000 && it.startsAt < now + 3 * 86400_000L }) })
                         } } catch (cancelled: CancellationException) { throw cancelled }
                         catch (_: Exception) { null }
-                        if (document != null) documents[feed.url] = document
-                        publish(true)
+                        if (document != null) {
+                            documentsMutex.withLock { documents[feed.url] = document }
+                            publish(true)
+                        }
                     } } }.joinAll() }
                     fetch(feeds.filterNot { it.fallback })
                     if (!primaryAvailable()) fetch(feeds.filter { it.fallback })

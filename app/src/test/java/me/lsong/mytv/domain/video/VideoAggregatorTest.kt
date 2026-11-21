@@ -24,6 +24,11 @@ class VideoAggregatorTest {
         ProviderVideoRecord(ProviderRecordRef(source, id), source, title, year, VideoKind.SERIES, "国产剧", "中国大陆", doubanId = douban)
     private fun withEpisodes(item: ProviderVideoRecord, vararg labels: String) = item.copy(lines = listOf(ProviderPlaybackLine("${item.ref.providerId}:line", "线路 1", labels.mapIndexed { i, label -> ProviderVideoPartRecord(label, PlaybackResource("https://example.com/${item.ref.providerId}/$i.m3u8", item.ref, item.providerName)) })))
 
+    @Test fun largeUnrelatedCatalogueDoesNotRequirePairwiseFullScan() {
+        val records = (0 until 3_000).map { index -> item("source", "不同节目$index", id = index.toString()) }
+        val works = VideoAggregator.merge(records)
+        assertEquals(records.size, works.size)
+    }
     @Test fun sameTitleYearAndKindCombineWithoutLosingSources() {
         val merged = VideoAggregator.merge(listOf(item("a", "测 试 剧"), item("b")))
         assertEquals(1, merged.size)
