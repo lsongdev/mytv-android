@@ -33,6 +33,7 @@ class PlaybackSessionTest {
         override fun pause() { pauses++ }
         override fun setVideoSurfaceView(surfaceView: SurfaceView) {}
         fun fail() = triggerError(PlaybackException.UNSUPPORTED_TYPE)
+        fun stall() = triggerCutoff()
     }
     private fun fixture(block: suspend CoroutineScope.(PlaybackSessionStore,android.content.SharedPreferences) -> Unit) = runBlocking<Unit> {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -83,6 +84,42 @@ class PlaybackSessionTest {
             assertEquals(b.uri,player.requests.last().uri)
             assertEquals(78_000L,player.requests.last().startPositionMs)
             assertFalse(player.requests.last().playWhenReady)
+            state.release()
+        }
+    }
+    @Test fun liveRecoveryWrapsAllLinesAndStopsAfterExhaustion() = fixture { _,_ ->
+        withContext(Dispatchers.Main) {
+            val c = a.copy(uri = "https://example.com/c.m3u8", origin = ProviderRecordRef("c","movie"))
+            val player = Player(this,false); val state = PlaybackState(player); state.initialize()
+            val coordinator = PlaybackCoordinator(state,LiveCatalogRepository())
+            assertTrue(coordinator.restore(PlaybackSession(
+                live = SavedLiveChannel("channel","CCTV","综合",listOf(a,b,c)),resourceId = b.id)))
+            player.fail()
+            assertEquals(c.uri,player.requests.last().uri)
+            player.fail()
+            assertEquals(a.uri,player.requests.last().uri)
+            player.fail()
+            assertEquals(3,player.requests.size)
+            assertNotNull(state.error)
+            state.release()
+        }
+    }
+    @Test fun stalledVideoRetriesThenFallsBackWithoutLosingPosition() = fixture { _,_ ->
+        withContext(Dispatchers.Main) {
+            val player = Player(this); val state = PlaybackState(player); state.initialize()
+            val coordinator = PlaybackCoordinator(state,LiveCatalogRepository())
+            assertTrue(coordinator.restore(PlaybackSession(video = selection,positionMs = 45_000)))
+            player.stall()
+            assertEquals(a.uri,player.requests.last().uri)
+            assertEquals(45_000L,player.requests.last().startPositionMs)
+            player.stall()
+            assertEquals(b.uri,player.requests.last().uri)
+            player.stall()
+            assertEquals(b.uri,player.requests.last().uri)
+            player.stall()
+            assertEquals("VIDEO_STALLED",state.error)
+            assertTrue(state.isPaused)
+            assertEquals(4,player.requests.size)
             state.release()
         }
     }

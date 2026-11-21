@@ -180,6 +180,15 @@ class MpvPlayerEngine(
     }
     override fun eventProperty(property: String, value: String) {}
     override fun event(eventId: Int) {
+        // Position can stay at zero (or be unavailable) for live streams.
+        // mpv's playback-restart event is a better initial readiness signal.
+        if (eventId == MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART) main.post {
+            if (!released && fileActive && !hasStarted) {
+                hasStarted = true
+                isBuffering = false
+                triggerReady()
+            }
+        }
         if (eventId == MPVLib.MpvEvent.MPV_EVENT_END_FILE) main.post {
             if (released) return@post
             if (pendingStopEndFiles > 0) { pendingStopEndFiles--; return@post }

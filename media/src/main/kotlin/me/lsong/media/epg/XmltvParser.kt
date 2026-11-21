@@ -84,6 +84,11 @@ object XmltvParser {
             }
         }
         val factory = SAXParserFactory.newInstance()
+        // Harden the parser as well as rejecting declarations in the input.
+        runCatching { factory.setFeature(javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING, true) }
+        runCatching { factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
+        runCatching { factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false) }
+        runCatching { factory.setXIncludeAware(false) }
         runCatching { factory.setFeature("http://xml.org/sax/features/external-general-entities", false) }
         runCatching { factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false) }
         factory.newSAXParser().parse(InputSource(StringReader(text)),handler)

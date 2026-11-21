@@ -102,7 +102,7 @@ abstract class PlayerEngine(
         }
     }
 
-    private fun triggerCutoff() {
+    protected fun triggerCutoff() {
         stopMonitoring()
         onCutoffListeners.toList().forEach { it() }
     }
