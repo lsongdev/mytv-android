@@ -24,6 +24,8 @@ import androidx.tv.material3.*
 import kotlinx.coroutines.flow.StateFlow
 import me.lsong.mytv.domain.playback.ResourceProbe
 import me.lsong.mytv.ui.focus.PaddedEdgeBringIntoViewSpec
+import me.lsong.mytv.ui.focus.PlacedFocusTargets
+import me.lsong.mytv.ui.focus.placedFocusTarget
 
 internal data class VideoChoice(val id: String, val title: String, val subtitle: String, val selected: Boolean)
 
@@ -34,8 +36,8 @@ internal fun VideoChoicesRow(
     onFocused: (String) -> Unit = {}, onClick: (String) -> Unit, onLeft: () -> Unit,
     probes: StateFlow<Map<String, ResourceProbe>>? = null,
 ) {
-    // Stable requesters per item, rather than moving one requester on every DPAD event.
-    val requesters = remember { mutableMapOf<String, FocusRequester>() }
+    // Only mounted lazy items can be destinations when entering this row.
+    val placed = remember { PlacedFocusTargets() }
     var focusedId by remember { mutableStateOf<String?>(null) }
     val selected = choices.firstOrNull { it.selected }?.id ?: choices.firstOrNull()?.id
     val entryId = focusedId?.takeIf { id -> choices.any { it.id == id } } ?: selected
@@ -47,13 +49,12 @@ internal fun VideoChoicesRow(
         Box(Modifier.fillMaxWidth().height(72.dp).focusRequester(focusTarget).focusable())
         return
     }
-    choices.forEach { requesters.getOrPut(it.id) { FocusRequester() } }
     CompositionLocalProvider(LocalBringIntoViewSpec provides policy) {
         LazyRow(
             state = scroll, horizontalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
             modifier = Modifier.fillMaxWidth().focusRequester(focusTarget)
-                .focusProperties { enter = { requesters[entryId] ?: FocusRequester.Default } }
+                .focusProperties { enter = { placed.requester(entryId) ?: FocusRequester.Default } }
                 .focusGroup().onPreviewKeyEvent { event ->
                     val index = choices.indexOfFirst { it.id == focusedId }.coerceAtLeast(0)
                     val action = when {
@@ -70,11 +71,12 @@ internal fun VideoChoicesRow(
                 },
         ) {
             itemsIndexed(choices, key = { _, choice -> choice.id }) { index, choice ->
+                val requester = remember(choice.id) { FocusRequester() }
                 Card(
                     onClick = { onClick(choice.id) }, scale = CardDefaults.scale(focusedScale = 1f),
                     colors = CardDefaults.colors(containerColor = Color.White.copy(alpha = if (choice.selected) .16f else .06f)),
                     modifier = Modifier.width(width).heightIn(min = 64.dp).testTag("$tag:${choice.id}")
-                        .focusRequester(requesters.getValue(choice.id))
+                        .focusRequester(requester).placedFocusTarget(choice.id,requester,placed)
                         .focusProperties {
                             if (index == 0) left = FocusRequester.Cancel
                             if (index == choices.lastIndex) right = FocusRequester.Cancel
