@@ -91,8 +91,7 @@ class MpvPlayerEngine(
     }
 
     override fun prepare(request: PlaybackRequest) {
-        stopMonitoring()
-        triggerPrepared()
+        resetMonitoring()
         val url = if (request.uri.startsWith("file:")) android.net.Uri.parse(request.uri).path ?: request.uri else request.uri
         val startMs = request.startPositionMs
         val playWhenReady = request.playWhenReady
@@ -112,6 +111,8 @@ class MpvPlayerEngine(
     private fun doLoad(url: String, startMs: Long, playWhenReady: Boolean) {
         if (fileActive) pendingStopEndFiles++
         fileActive = true
+        // Start the watchdog only when a surface exists and mpv can load.
+        triggerPrepared()
         val startSec = (startMs / 1000.0).coerceAtLeast(0.0)
         if (startSec > 0) {
             mpv.command(arrayOf("loadfile", url, "replace", "0", "start=$startSec"))
@@ -169,6 +170,7 @@ class MpvPlayerEngine(
             if (released) return@post
             when (property) {
                 "time-pos" -> {
+                    if (!fileActive || pendingUrl != null) return@post
                     positionMs = (value * 1000).toLong().coerceAtLeast(0)
                     if (!hasStarted && value > 0) { hasStarted = true; isBuffering = false; triggerReady() }
                     triggerCurrentPosition(positionMs, isPlaying)

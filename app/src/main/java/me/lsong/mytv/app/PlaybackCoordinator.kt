@@ -41,11 +41,13 @@ class PlaybackCoordinator(private val videoPlayerState: PlaybackState, private v
                 val next = videoRecovery.nextAfterFailure(resources.map { it.id }, current)
                 if (next != null) startVideo(selection.copy(resourceId = resources[next].id),
                     positionForSave(),videoPlayerState.isPaused,false)
+                else videoPlayerState.reportFailure(videoPlayerState.error ?: "VIDEO_UNAVAILABLE")
                 return@onError
             }
             channel.resources.getOrNull(resourceIndex)?.let { AppPreferences.iptvPlayableHostList -= host(it.uri) }
             val next = liveRecovery.nextAfterFailure(channel.resources.map { it.id },resourceIndex)
             if (next != null) startChannel(channel,next,videoPlayerState.isPaused,resetRecovery = false)
+            else videoPlayerState.reportFailure(videoPlayerState.error ?: "LIVE_UNAVAILABLE")
         }
         videoPlayerState.onCutoff {
             val selection = videoSelection

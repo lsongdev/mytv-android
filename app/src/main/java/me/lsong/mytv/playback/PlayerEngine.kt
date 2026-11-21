@@ -107,6 +107,14 @@ abstract class PlayerEngine(
         onCutoffListeners.toList().forEach { it() }
     }
 
+    /** A new request invalidates timers from the previous media generation. */
+    protected fun resetMonitoring() {
+        stopMonitoring()
+        awaitingReady = false
+        buffering = false
+        currentPosition = -1L
+    }
+
     protected fun triggerPrepared() {
         awaitingReady = true
         buffering = false

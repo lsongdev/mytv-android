@@ -48,6 +48,7 @@ class Media3PlayerEngine(
     }
 
     private val contentTypeAttempts = mutableMapOf<Int, Boolean>()
+    private val liveWindowRetries = TimeWindowRetryBudget(maxRetries = 1, windowMs = 60_000L)
     private var updatePositionJob: Job? = null
     private var request = PlaybackRequest("")
 
@@ -105,9 +106,15 @@ class Media3PlayerEngine(
 
         override fun onPlayerError(ex: Media3PlaybackException) {
             // 如果是直播加载位置错误，尝试重新播放
-            if (ex.errorCode == Media3PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+            if (ex.errorCode == Media3PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW &&
+                request.live && liveWindowRetries.tryAcquire()) {
+                // A single bounded refresh handles stale HLS windows; repeated
+                // failures must advance to the next resource instead of looping.
+                triggerPrepared()
                 videoPlayer.seekToDefaultPosition()
                 videoPlayer.prepare()
+            } else if (ex.errorCode == Media3PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+                triggerError(PlaybackException(ex.errorCodeName, ex.errorCode))
             }
             // 当解析容器不支持时，尝试使用其他解析容器
             else if (ex.errorCode == Media3PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED) {
@@ -208,7 +215,7 @@ class Media3PlayerEngine(
         super.initialize()
         videoPlayer.addListener(playerListener)
         videoPlayer.addAnalyticsListener(metadataListener)
-        videoPlayer.addAnalyticsListener(eventLogger)
+        if (AppPreferences.debugShowVideoPlayerMetadata) videoPlayer.addAnalyticsListener(eventLogger)
     }
 
     override fun release() {
@@ -222,7 +229,8 @@ class Media3PlayerEngine(
 
     @UnstableApi
     override fun prepare(request: PlaybackRequest) {
-        stopMonitoring()
+        resetMonitoring()
+        liveWindowRetries.reset()
         this.request = request
         contentTypeAttempts.clear()
         prepare(Uri.parse(request.uri))
