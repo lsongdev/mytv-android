@@ -24,7 +24,10 @@ class M3uLiveProviderAdapter(private val client: M3uClient = M3uClient(), privat
         return map(provider,document)
     }
     private suspend fun map(provider: ProviderConfig, document: M3uDocument): ProviderLiveCatalog = withContext(Dispatchers.Default) {
-        ProviderLiveCatalog(provider, document.entries.map { it.toChannelRecord(provider) },
+        ProviderLiveCatalog(provider, document.entries.mapNotNull { entry ->
+            val resolved = resolveMediaUrl(provider.url,entry.uri) ?: return@mapNotNull null
+            entry.copy(uri = resolved).toChannelRecord(provider)
+        },
             listOfNotNull(document.headers["x-tvg-url"], document.headers["url-tvg"]).flatMap { it.split(',') }
                 .mapNotNull { resolvePlaylistUrl(provider.url,it.trim()) }.distinct(), error = storage?.state(provider)?.error)
     }
@@ -52,4 +55,17 @@ internal fun M3uEntry.toChannelRecord(provider: ProviderConfig): ProviderChannel
 internal fun resolvePlaylistUrl(base: String, value: String): String? = runCatching {
     value.takeIf(String::isNotBlank)?.let { java.net.URI(base).resolve(it.trim()).toString() }
         ?.takeIf { me.lsong.mytv.domain.provider.isHttpUrl(it) }
+}.getOrNull()
+
+/** Resolve media URLs against the playlist while retaining non-HTTP transports for MPV. */
+internal fun resolveMediaUrl(playlistUrl: String, raw: String): String? = runCatching {
+    val value = raw.trim().takeIf { it.isNotEmpty() } ?: return@runCatching null
+    val resolved = java.net.URI(playlistUrl).resolve(java.net.URI(value))
+    val uri = resolved.toString()
+    when (resolved.scheme?.lowercase()) {
+        "http", "https" -> uri.takeIf(me.lsong.mytv.domain.provider::isHttpUrl)
+        "rtsp", "rtsps", "rtmp", "udp", "rtp", "srt" ->
+            uri.takeIf { resolved.rawSchemeSpecificPart.isNotBlank() }
+        else -> null
+    }
 }.getOrNull()

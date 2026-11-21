@@ -12,6 +12,13 @@ class LiveAggregationTest {
     private fun playlist(id: String, title: String = "CCTV-1", group: String = "央视", url: String = "https://$id.example/live", headers: Map<String,String> = emptyMap()) =
         ProviderLiveCatalog(provider(id), listOf(M3uEntry(mapOf("group-title" to group) + headers, title, url).toChannelRecord(provider(id))))
 
+    @Test fun relativeMediaUrlsResolveAndUnsafeSchemesAreRejected() {
+        assertEquals("https://example.com/streams/tv.m3u8",
+            me.lsong.mytv.data.providers.m3u.resolveMediaUrl("https://example.com/lists/tv.m3u","../streams/tv.m3u8"))
+        assertEquals("rtsp://192.168.1.1/live",
+            me.lsong.mytv.data.providers.m3u.resolveMediaUrl("https://example.com/list.m3u","rtsp://192.168.1.1/live"))
+        assertNull(me.lsong.mytv.data.providers.m3u.resolveMediaUrl("https://example.com/list.m3u","javascript:alert(1)"))
+    }
     @Test fun matchingChannelsKeepResourcesAndOriginsAcrossGroups() {
         val merged = mergeLiveCatalogs(listOf(playlist("a"), playlist("b", "CCTV1高清", "央视频道")))
         assertEquals(1, merged.channels.size)

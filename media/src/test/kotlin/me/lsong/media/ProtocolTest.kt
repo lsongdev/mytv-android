@@ -15,6 +15,17 @@ class ProtocolTest {
         assertEquals("CCTV1", result.entries.single().title)
         assertEquals("https://example.com/live", result.entries.single().uri)
     }
+    @Test fun vlcHttpOptionsAndExtgrpBelongToTheirOwnEntry() {
+        val input = "#EXTM3U\n#EXTINF:-1,台一\n#EXTVLCOPT:http-user-agent=Player/1.0\n" +
+            "#EXTVLCOPT:http-referrer=https://example.com/ref?a=1\n#EXTGRP:新闻\n/live/1.m3u8\n" +
+            "#EXTINF:-1,台二\n/live/2.m3u8"
+        val entries = M3uParser.parse(input).entries
+        assertEquals("Player/1.0",entries[0].attributes["http-user-agent"])
+        assertEquals("https://example.com/ref?a=1",entries[0].attributes["http-referrer"])
+        assertEquals("新闻",entries[0].attributes["group-title"])
+        assertFalse(entries[1].attributes.containsKey("http-user-agent"))
+        assertFalse(entries[1].attributes.containsKey("group-title"))
+    }
     @Test fun missingExtinfTitleDoesNotCrashOrLeakMetadata() {
         val result = M3uParser.parse("#EXTM3U\n#EXTINF:-1 tvg-id=\"one\"\nhttps://example.com/1\nhttps://example.com/2")
         assertEquals("one", result.entries[0].attributes["tvg-id"])

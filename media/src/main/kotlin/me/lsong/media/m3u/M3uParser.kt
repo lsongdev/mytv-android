@@ -20,6 +20,21 @@ object M3uParser {
                     attributes = attributes(if (comma < 0) info else info.substring(0, comma))
                     title = if (comma < 0) "" else info.substring(comma + 1).trim()
                 }
+                line.startsWith("#EXTVLCOPT:", ignoreCase = true) -> {
+                    val option = line.substringAfter(':')
+                    val index = option.indexOf('=')
+                    if (index > 0) {
+                        val key = option.substring(0,index).trim().lowercase()
+                        val value = option.substring(index+1).trim()
+                        if (value.isNotEmpty() && key in setOf("http-user-agent","http-referer","http-referrer")) {
+                            attributes = attributes + (key to value)
+                        }
+                    }
+                }
+                line.startsWith("#EXTGRP:", ignoreCase = true) -> {
+                    val group = line.substringAfter(':').trim()
+                    if (group.isNotBlank()) attributes = attributes + ("group-title" to group)
+                }
                 !line.startsWith("#") -> {
                     entries += M3uEntry(attributes, title, line)
                     attributes = emptyMap()
