@@ -34,9 +34,11 @@ fun mergeLiveCatalogs(catalogs: List<ProviderLiveCatalog>, identities: CatalogId
         if (allFailed) "直播源加载失败，请在设置中检查地址" else null, catalogs.any { it.isLoading })
 }
 
+private val liveSeparators = Regex("""[\p{P}\p{Z}\s]+""")
+private val liveQualitySuffix = Regex("(?:高清|超清|标清|hd|fhd)$")
 private fun normalizeChannelName(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
-    .lowercase().replace(Regex("""[\p{P}\p{Z}\s]+"""), "")
-    .replace(Regex("(?:高清|超清|标清|hd|fhd)$"), "")
+    .lowercase().replace(liveSeparators, "")
+    .replace(liveQualitySuffix, "")
 
 /** An EPG name can describe a series; the visible year distinguishes its recordings. */
 internal fun liveChannelEditionYear(title: String): String? = editionYear.findAll(Normalizer.normalize(title,Normalizer.Form.NFKC))

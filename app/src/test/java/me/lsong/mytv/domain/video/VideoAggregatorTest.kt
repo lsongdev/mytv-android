@@ -29,6 +29,16 @@ class VideoAggregatorTest {
         val works = VideoAggregator.merge(records)
         assertEquals(records.size, works.size)
     }
+    @Test fun manyConflictingIdsWithIdenticalTitleDoNotMerge() {
+        val records = (0 until 2_000).map { index ->
+            item("source", "同名影片", id = index.toString(), douban = (index + 1).toString())
+        }
+        val works = VideoAggregator.merge(records)
+        assertEquals(records.size, works.size)
+        val withUnknown = VideoAggregator.merge(records + item("other", "同名影片", id = "no-douban"))
+        assertEquals(records.size, withUnknown.size)
+        assertEquals(2, withUnknown.first().providerCount)
+    }
     @Test fun sameTitleYearAndKindCombineWithoutLosingSources() {
         val merged = VideoAggregator.merge(listOf(item("a", "测 试 剧"), item("b")))
         assertEquals(1, merged.size)
