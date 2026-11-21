@@ -47,8 +47,8 @@ object VideoAggregator {
         val candidates = HashMap<String, MutableList<Int>>()
         fun keys(id: Identity): List<String> = buildList {
             val discriminator = "${id.kind}|${id.season}|${id.edition}"
-            if (id.externalId != null) add("id:${id.kind}|${id.season}|${id.edition}|${id.externalId}")
-            if (id.year.isNotEmpty()) add("alias:${id.kind}|${id.season}|${id.edition}|${id.alias}")
+            if (id.externalId != null) add("id:$discriminator|${id.externalId}")
+            if (id.year.isNotEmpty()) add("alias:$discriminator|${id.alias}")
         }
         unique.forEach { item ->
             val id = identities.getValue(item.ref)

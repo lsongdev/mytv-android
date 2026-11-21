@@ -113,6 +113,7 @@ class PlaybackState(
         instance.onError { ex ->
             error = if (ex != null) "${ex.errorCodeName}(${ex.errorCode})"
             else null
+            if (error != null) isBuffering = false
 
             if (error != null) onErrorListeners.forEach { it.invoke() }
 

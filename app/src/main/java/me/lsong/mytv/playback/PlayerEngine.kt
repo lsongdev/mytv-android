@@ -14,6 +14,8 @@ abstract class PlayerEngine(
 )  {
     private var loadTimeoutJob: Job? = null
     private var cutoffTimeoutJob: Job? = null
+    private var bufferingTimeoutJob: Job? = null
+    private var buffering = false
     private var currentPosition = -1L
     private var awaitingReady = false
     private var monitoringPaused = false
@@ -79,15 +81,36 @@ abstract class PlayerEngine(
     protected fun triggerReady() {
         awaitingReady = false
         loadTimeoutJob?.cancel()
+        if (buffering) startBufferingTimeout()
         onReadyListeners.toList().forEach { it() }
     }
 
     protected fun triggerBuffering(buffering: Boolean) {
+        if (this.buffering != buffering) {
+            this.buffering = buffering
+            if (buffering) startBufferingTimeout() else bufferingTimeoutJob?.cancel()
+        }
         onBufferingListeners.forEach { it(buffering) }
+    }
+
+    private fun startBufferingTimeout() {
+        bufferingTimeoutJob?.cancel()
+        if (awaitingReady || monitoringPaused || !buffering) return
+        bufferingTimeoutJob = coroutineScope.launch {
+            delay(AppPreferences.videoPlayerLoadTimeout.coerceAtLeast(1_000L))
+            if (buffering && !monitoringPaused && !awaitingReady) triggerCutoff()
+        }
+    }
+
+    private fun triggerCutoff() {
+        stopMonitoring()
+        onCutoffListeners.toList().forEach { it() }
     }
 
     protected fun triggerPrepared() {
         awaitingReady = true
+        buffering = false
+        bufferingTimeoutJob?.cancel()
         currentPosition = -1L
         onPreparedListeners.forEach { it() }
         startLoadTimeout()
@@ -112,6 +135,7 @@ abstract class PlayerEngine(
     protected fun triggerResumed() {
         monitoringPaused = false
         if (awaitingReady) startLoadTimeout()
+        else if (buffering) startBufferingTimeout()
     }
 
     protected fun triggerMetadata(metadata: Metadata) {
@@ -121,7 +145,9 @@ abstract class PlayerEngine(
     protected fun stopMonitoring() {
         loadTimeoutJob?.cancel()
         cutoffTimeoutJob?.cancel()
+        bufferingTimeoutJob?.cancel()
         cutoffTimeoutJob = null
+        bufferingTimeoutJob = null
     }
 
     protected fun triggerCurrentPosition(newPosition: Long, playing: Boolean) {
@@ -129,8 +155,8 @@ abstract class PlayerEngine(
         if (currentPosition != newPosition) {
             cutoffTimeoutJob?.cancel()
             cutoffTimeoutJob = coroutineScope.launch {
-                delay(AppPreferences.videoPlayerLoadTimeout)
-                onCutoffListeners.forEach { it() }
+                delay(AppPreferences.videoPlayerLoadTimeout.coerceAtLeast(1_000L))
+                if (!monitoringPaused) triggerCutoff()
             }
         }
         currentPosition = newPosition

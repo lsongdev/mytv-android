@@ -35,6 +35,7 @@ object MacCmsParser {
         val id = row.text("vod_id"); val title = clean(row.text("vod_name"))
         require(id.isNotBlank() && title.isNotBlank())
         val category = clean(row.text("type_name"))
+        val base = baseUri.toHttpUrl()
         val codes = row.text("vod_play_from").split("$$$")
         val lines = if (includeLines) row.text("vod_play_url").split("$$$").mapIndexedNotNull { index, value ->
             val code = codes.getOrElse(index) { "" }
@@ -43,7 +44,7 @@ object MacCmsParser {
                 if (split <= 0) null else {
                     val label = clean(entry.substring(0, split))
                     val rawUrl = entry.substring(split + 1).trim()
-                    val url = baseUri.toHttpUrl().resolve(rawUrl)?.toString().orEmpty()
+                    val url = base.resolve(rawUrl)?.toString().orEmpty()
                     if (label.isBlank() || url.isBlank()) null else MacCmsPart(label, url, direct(url, code))
                 }
             }
@@ -51,7 +52,7 @@ object MacCmsParser {
         } else emptyList()
         return MacCmsVideo(
             id, title, row.text("vod_year"), category,
-            row.text("vod_area"), row.text("vod_pic").takeIf { it.isNotBlank() }?.let { baseUri.toHttpUrl().resolve(it)?.toString() }.orEmpty(),
+            row.text("vod_area"), row.text("vod_pic").takeIf { it.isNotBlank() }?.let { base.resolve(it)?.toString() }.orEmpty(),
             clean(row.text("vod_content").ifBlank { row.text("vod_blurb") }), clean(row.text("vod_remarks")),
             row.text("vod_douban_id"), row.text("vod_version"), lines,
         )
